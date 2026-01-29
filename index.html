@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motion Banner</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #f0f0f0;
+    }
+
+    .banner {
+      position: relative;
+      width: 450px;
+      height: 600px; /* 3:4 */
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .shape {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 280px;
+      height: 360px;
+      transform: translate(-50%, -50%);
+      background: #d9d9d9;
+      border-radius: 4px;
+      animation: flyInFromLeft 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      opacity: 0;
+    }
+
+    @keyframes flyInFromLeft {
+      0% {
+        transform: translate(calc(-50% - 600px), -50%);
+        opacity: 0;
+      }
+      15% {
+        opacity: 1;
+      }
+      100% {
+        transform: translate(-50%, -50%);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="banner">
+    <div class="shape"></div>
+  </div>
+</body>
+</html>

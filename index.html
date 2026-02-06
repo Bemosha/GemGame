@@ -3,790 +3,695 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Поймай со стола!</title>
+  <title>Танчики 3D</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #1a1a2e;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      overflow: hidden;
-      touch-action: none;
-      user-select: none;
-      -webkit-user-select: none;
-      font-family: 'Segoe UI', Arial, sans-serif;
-    }
-    canvas { display: block; border-radius: 4px; }
-
-    .overlay {
-      position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
-      display: flex; flex-direction: column;
-      justify-content: center; align-items: center;
-      z-index: 10; color: #fff; text-align: center; padding: 20px;
-    }
-    #startScreen { background: rgba(0,0,0,0.88); }
-    #gameOverScreen { background: rgba(0,0,0,0.88); display: none; }
-
-    h1 { font-size: 32px; margin-bottom: 10px; }
-    .emoji-title { font-size: 50px; margin-bottom: 10px; }
-    .subtitle { font-size: 15px; color: #bbb; margin-bottom: 24px; max-width: 300px; line-height: 1.5; }
-    .btn {
-      background: linear-gradient(135deg, #ff6b35, #ff9f1c);
-      color: #fff; border: none; padding: 14px 40px; font-size: 18px;
-      border-radius: 30px; cursor: pointer;
-      box-shadow: 0 4px 15px rgba(255,107,53,0.4);
-      transition: transform 0.2s;
-    }
-    .btn:active { transform: scale(0.95); }
-    .final-score { font-size: 60px; font-weight: bold; color: #ff9f1c; margin: 10px 0 6px; }
-    .best-score { font-size: 16px; color: #888; margin-bottom: 24px; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font-family:Arial,sans-serif}
+    canvas{display:block;width:100vw;height:100vh}
+    #hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+    #score{position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:16px;pointer-events:none}
+    #score span{color:#ff4444;font-weight:bold;font-size:22px}
+    #hp{position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:14px;pointer-events:none}
+    #hpBar{width:120px;height:10px;background:#333;border-radius:5px;margin-top:4px}
+    #hpFill{width:100%;height:100%;background:#4f4;border-radius:5px;transition:width 0.3s}
+    #fireBtn{position:absolute;bottom:30px;right:30px;width:80px;height:80px;border-radius:50%;
+      background:radial-gradient(circle at 35% 35%,#ff6644,#cc2200);border:3px solid rgba(255,255,255,0.3);
+      color:#fff;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:center;
+      pointer-events:auto;cursor:pointer;box-shadow:0 0 20px rgba(255,50,0,0.4);text-shadow:0 1px 2px rgba(0,0,0,0.5)}
+    #fireBtn:active{transform:scale(0.9);background:radial-gradient(circle at 35% 35%,#ff8866,#ee4422)}
+    #joystickArea{position:absolute;bottom:20px;left:20px;width:150px;height:150px;pointer-events:auto}
+    #joystickBase{width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);
+      position:absolute;bottom:15px;left:15px}
+    #joystickKnob{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,0.35);border:2px solid rgba(255,255,255,0.4);
+      position:absolute;bottom:50px;left:50px;transform:translate(-50%,-50%);pointer-events:none}
+    #startScreen,#gameOverScreen{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;
+      justify-content:center;align-items:center;z-index:20;color:#fff;text-align:center;padding:20px}
+    #startScreen{background:rgba(0,0,0,0.85)}
+    #gameOverScreen{background:rgba(0,0,0,0.88);display:none}
+    h1{font-size:32px;margin-bottom:8px}
+    .emoji-t{font-size:50px;margin-bottom:8px}
+    .sub{font-size:14px;color:#aaa;margin-bottom:20px;max-width:280px;line-height:1.5}
+    .btn{background:linear-gradient(135deg,#cc2200,#ff6644);color:#fff;border:none;padding:14px 36px;font-size:18px;
+      border-radius:30px;cursor:pointer;box-shadow:0 4px 15px rgba(200,0,0,0.4)}
+    .btn:active{transform:scale(0.95)}
+    .fs{font-size:56px;font-weight:bold;color:#ff4444;margin:8px 0}
+    .bs{font-size:15px;color:#888;margin-bottom:20px}
+    #minimap{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:100px;height:100px;
+      background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);border-radius:8px;pointer-events:none}
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
-
-  <div class="overlay" id="startScreen">
-    <div class="emoji-title">🥣🥛🍽️</div>
-    <h1>Поймай со стола!</h1>
-    <p class="subtitle">Предметы падают со стола! Лови их пальцем и ставь обратно. Игра ускоряется с каждым пойманным предметом!</p>
-    <button class="btn" id="startBtn">Играть!</button>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="score">Уничтожено: <span id="kills">0</span></div>
+  <div id="hp">HP<div id="hpBar"><div id="hpFill"></div></div></div>
+  <div id="fireBtn">ОГОНЬ</div>
+  <div id="joystickArea">
+    <div id="joystickBase"></div>
+    <div id="joystickKnob"></div>
   </div>
+  <canvas id="minimap"></canvas>
+</div>
+<div id="startScreen">
+  <div class="emoji-t">🔫</div>
+  <h1>Танчики 3D</h1>
+  <p class="sub">Води пальцем — управляй танком. Кнопка ОГОНЬ — стреляй! Уничтожай вражеские танки!</p>
+  <button class="btn" id="startBtn">В бой!</button>
+</div>
+<div id="gameOverScreen">
+  <div class="emoji-t">💥</div>
+  <h1>Подбит!</h1>
+  <p class="sub">Твой танк уничтожен</p>
+  <div class="fs" id="finalKills">0</div>
+  <p class="bs" id="bestKills">Лучший: 0</p>
+  <button class="btn" id="restartBtn">Ещё раз!</button>
+</div>
 
-  <div class="overlay" id="gameOverScreen">
-    <div class="emoji-title">💥</div>
-    <h1>Разбилось!</h1>
-    <p class="subtitle">Ты не успел поймать предмет</p>
-    <div class="final-score" id="finalScore">0</div>
-    <p class="best-score" id="bestScore">Лучший: 0</p>
-    <button class="btn" id="restartBtn">Ещё раз!</button>
-  </div>
+<script>
+// ===== WebGL helpers =====
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl', {antialias:true, alpha:false});
+if(!gl){alert('WebGL не поддерживается');throw new Error('no webgl')}
 
-  <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const startScreen = document.getElementById('startScreen');
-    const gameOverScreen = document.getElementById('gameOverScreen');
-    const finalScoreEl = document.getElementById('finalScore');
-    const bestScoreEl = document.getElementById('bestScore');
+function resize(){
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  gl.viewport(0,0,canvas.width,canvas.height);
+}
+window.addEventListener('resize',resize); resize();
 
-    // Logical game size
-    const GW = 400, GH = 700;
-    let W, H, sc = 1;
+// ===== Shaders =====
+const VS=`
+attribute vec3 aPos;
+attribute vec3 aNorm;
+uniform mat4 uMVP;
+uniform mat4 uModel;
+varying vec3 vNorm;
+varying vec3 vWorldPos;
+void main(){
+  gl_Position=uMVP*vec4(aPos,1.0);
+  vNorm=mat3(uModel)*aNorm;
+  vWorldPos=(uModel*vec4(aPos,1.0)).xyz;
+}`;
+const FS=`
+precision mediump float;
+varying vec3 vNorm;
+varying vec3 vWorldPos;
+uniform vec3 uColor;
+uniform vec3 uLightDir;
+uniform float uFog;
+void main(){
+  vec3 n=normalize(vNorm);
+  float diff=max(dot(n,uLightDir),0.0);
+  vec3 col=uColor*(0.35+0.65*diff);
+  // fog
+  float d=length(vWorldPos);
+  float fog=clamp((d-80.0)/120.0,0.0,1.0)*uFog;
+  vec3 fogCol=vec3(0.55,0.75,0.95);
+  col=mix(col,fogCol,fog);
+  gl_FragColor=vec4(col,1.0);
+}`;
 
-    function resize() {
-      const r = GW / GH, wr = window.innerWidth / window.innerHeight;
-      if (wr > r) { H = Math.min(window.innerHeight, GH); W = H * r; }
-      else { W = Math.min(window.innerWidth, GW); H = W / r; }
-      sc = W / GW;
-      canvas.width = W; canvas.height = H;
-      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+function compileShader(src,type){
+  const s=gl.createShader(type);
+  gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){console.error(gl.getShaderInfoLog(s));}
+  return s;
+}
+const prog=gl.createProgram();
+gl.attachShader(prog,compileShader(VS,gl.VERTEX_SHADER));
+gl.attachShader(prog,compileShader(FS,gl.FRAGMENT_SHADER));
+gl.linkProgram(prog); gl.useProgram(prog);
+
+const aPos=gl.getAttribLocation(prog,'aPos');
+const aNorm=gl.getAttribLocation(prog,'aNorm');
+const uMVP=gl.getUniformLocation(prog,'uMVP');
+const uModel=gl.getUniformLocation(prog,'uModel');
+const uColor=gl.getUniformLocation(prog,'uColor');
+const uLightDir=gl.getUniformLocation(prog,'uLightDir');
+const uFog=gl.getUniformLocation(prog,'uFog');
+
+gl.enable(gl.DEPTH_TEST);
+gl.enable(gl.CULL_FACE);
+
+// ===== Geometry: Box =====
+function makeBox(){
+  // pos + normal interleaved
+  const p=0.5;
+  const faces=[
+    // front
+    [-p,-p,p, 0,0,1], [p,-p,p, 0,0,1], [p,p,p, 0,0,1], [-p,p,p, 0,0,1],
+    // back
+    [p,-p,-p, 0,0,-1], [-p,-p,-p, 0,0,-1], [-p,p,-p, 0,0,-1], [p,p,-p, 0,0,-1],
+    // top
+    [-p,p,p, 0,1,0], [p,p,p, 0,1,0], [p,p,-p, 0,1,0], [-p,p,-p, 0,1,0],
+    // bottom
+    [-p,-p,-p, 0,-1,0], [p,-p,-p, 0,-1,0], [p,-p,p, 0,-1,0], [-p,-p,p, 0,-1,0],
+    // right
+    [p,-p,p, 1,0,0], [p,-p,-p, 1,0,0], [p,p,-p, 1,0,0], [p,p,p, 1,0,0],
+    // left
+    [-p,-p,-p, -1,0,0], [-p,-p,p, -1,0,0], [-p,p,p, -1,0,0], [-p,p,-p, -1,0,0],
+  ];
+  const verts=new Float32Array(faces.flat());
+  const idx=[];
+  for(let i=0;i<6;i++){const o=i*4;idx.push(o,o+1,o+2,o,o+2,o+3);}
+  const ibo=new Uint16Array(idx);
+
+  const vbo=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,vbo); gl.bufferData(gl.ARRAY_BUFFER,verts,gl.STATIC_DRAW);
+  const ebo=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ebo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,ibo,gl.STATIC_DRAW);
+  return{vbo,ebo,count:ibo.length};
+}
+const box=makeBox();
+
+function drawBox(mvp,model,color,fog){
+  gl.bindBuffer(gl.ARRAY_BUFFER,box.vbo);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,box.ebo);
+  gl.enableVertexAttribArray(aPos);
+  gl.enableVertexAttribArray(aNorm);
+  gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,24,0);
+  gl.vertexAttribPointer(aNorm,3,gl.FLOAT,false,24,12);
+  gl.uniformMatrix4fv(uMVP,false,mvp);
+  gl.uniformMatrix4fv(uModel,false,model);
+  gl.uniform3fv(uColor,color);
+  gl.uniform3fv(uLightDir,[0.4,0.8,0.3]);
+  gl.uniform1f(uFog,fog===undefined?1:fog);
+  gl.drawElements(gl.TRIANGLES,box.count,gl.UNSIGNED_SHORT,0);
+}
+
+// ===== Mat4 (minimal) =====
+function mat4(){return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1])}
+function mat4Pers(fov,asp,near,far){
+  const f=1/Math.tan(fov/2),nf=1/(near-far),o=mat4();
+  o[0]=f/asp;o[5]=f;o[10]=(far+near)*nf;o[11]=-1;o[14]=2*far*near*nf;o[15]=0;return o;
+}
+function mat4LookAt(eye,ctr,up){
+  let zx=eye[0]-ctr[0],zy=eye[1]-ctr[1],zz=eye[2]-ctr[2];
+  let l=Math.sqrt(zx*zx+zy*zy+zz*zz);zx/=l;zy/=l;zz/=l;
+  let xx=up[1]*zz-up[2]*zy,xy=up[2]*zx-up[0]*zz,xz=up[0]*zy-up[1]*zx;
+  l=Math.sqrt(xx*xx+xy*xy+xz*xz);xx/=l;xy/=l;xz/=l;
+  let yx=zy*xz-zz*xy,yy=zz*xx-zx*xz,yz=zx*xy-zy*xx;
+  const o=mat4();
+  o[0]=xx;o[1]=yx;o[2]=zx;o[4]=xy;o[5]=yy;o[6]=zy;o[8]=xz;o[9]=yz;o[10]=zz;
+  o[12]=-(xx*eye[0]+xy*eye[1]+xz*eye[2]);
+  o[13]=-(yx*eye[0]+yy*eye[1]+yz*eye[2]);
+  o[14]=-(zx*eye[0]+zy*eye[1]+zz*eye[2]);
+  return o;
+}
+function mat4Mul(a,b){
+  const o=mat4();
+  for(let i=0;i<4;i++)for(let j=0;j<4;j++){
+    o[j*4+i]=a[i]*b[j*4]+a[4+i]*b[j*4+1]+a[8+i]*b[j*4+2]+a[12+i]*b[j*4+3];
+  }return o;
+}
+function mat4Trans(x,y,z){const o=mat4();o[12]=x;o[13]=y;o[14]=z;return o;}
+function mat4Scale(x,y,z){const o=mat4();o[0]=x;o[5]=y;o[10]=z;return o;}
+function mat4RotY(a){const o=mat4(),c=Math.cos(a),s=Math.sin(a);o[0]=c;o[2]=-s;o[8]=s;o[10]=c;return o;}
+
+// ===== Game State =====
+let gameRunning=false, kills=0, bestKills=parseInt(localStorage.getItem('tank3dBest')||'0');
+
+const WORLD=200; // world half-size
+
+// Player
+let player={x:0,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0,rotSpeed:0};
+// Enemies
+let enemies=[];
+// Bullets
+let bullets=[];
+// Explosions
+let explosions=[];
+// Obstacles
+let obstacles=[];
+
+function spawnObstacles(){
+  obstacles=[];
+  for(let i=0;i<40;i++){
+    obstacles.push({
+      x:(Math.random()-0.5)*WORLD*1.6,
+      z:(Math.random()-0.5)*WORLD*1.6,
+      w:2+Math.random()*3,
+      h:1+Math.random()*4,
+      d:2+Math.random()*3,
+      color:[0.4+Math.random()*0.2,0.35+Math.random()*0.15,0.25+Math.random()*0.1]
+    });
+  }
+}
+
+function spawnEnemy(){
+  const a=Math.random()*Math.PI*2;
+  const r=40+Math.random()*60;
+  enemies.push({
+    x:player.x+Math.cos(a)*r,
+    z:player.z+Math.sin(a)*r,
+    angle:Math.random()*Math.PI*2,
+    turretAngle:Math.random()*Math.PI*2,
+    hp:3,
+    speed:0,
+    moveTimer:0,
+    shootTimer:60+Math.random()*120,
+    color:[0.15+Math.random()*0.2, 0.5+Math.random()*0.3, 0.15+Math.random()*0.2],
+    turretColor:[0.1+Math.random()*0.15, 0.4+Math.random()*0.2, 0.1+Math.random()*0.15]
+  });
+}
+
+function resetGame(){
+  player={x:0,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0};
+  enemies=[]; bullets=[]; explosions=[];
+  kills=0;
+  spawnObstacles();
+  for(let i=0;i<5;i++)spawnEnemy();
+}
+
+// ===== Joystick =====
+const joystickArea=document.getElementById('joystickArea');
+const joystickKnob=document.getElementById('joystickKnob');
+const joystickBase=document.getElementById('joystickBase');
+let joyX=0,joyY=0,joyActive=false,joyTouchId=null;
+
+function getJoyCenter(){
+  const r=joystickBase.getBoundingClientRect();
+  return{x:r.left+r.width/2,y:r.top+r.height/2};
+}
+
+joystickArea.addEventListener('touchstart',(e)=>{
+  e.preventDefault();
+  if(joyTouchId!==null)return;
+  const t=e.changedTouches[0];
+  joyTouchId=t.identifier;
+  joyActive=true;
+  updateJoy(t);
+},{passive:false});
+
+joystickArea.addEventListener('touchmove',(e)=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===joyTouchId)updateJoy(t);
+  }
+},{passive:false});
+
+joystickArea.addEventListener('touchend',(e)=>{
+  for(const t of e.changedTouches){
+    if(t.identifier===joyTouchId){joyActive=false;joyTouchId=null;joyX=0;joyY=0;
+      joystickKnob.style.left='50%';joystickKnob.style.bottom='50%';}
+  }
+});
+
+function updateJoy(t){
+  const c=getJoyCenter();
+  let dx=t.clientX-c.x, dy=-(t.clientY-c.y);
+  const maxR=50;
+  const d=Math.sqrt(dx*dx+dy*dy);
+  if(d>maxR){dx=dx/d*maxR;dy=dy/d*maxR;}
+  joyX=dx/maxR; joyY=dy/maxR;
+  const br=joystickBase.getBoundingClientRect();
+  joystickKnob.style.left=(50+dx/br.width*100)+'%';
+  joystickKnob.style.bottom=(50+dy/br.height*100)+'%';
+}
+
+// Mouse joystick fallback
+let mouseJoy=false;
+joystickArea.addEventListener('mousedown',(e)=>{mouseJoy=true;updateMouseJoy(e);});
+window.addEventListener('mousemove',(e)=>{if(mouseJoy)updateMouseJoy(e);});
+window.addEventListener('mouseup',()=>{mouseJoy=false;joyX=0;joyY=0;joyActive=false;
+  joystickKnob.style.left='50%';joystickKnob.style.bottom='50%';});
+function updateMouseJoy(e){
+  joyActive=true;
+  const c=getJoyCenter();
+  let dx=e.clientX-c.x, dy=-(e.clientY-c.y);
+  const maxR=50,d=Math.sqrt(dx*dx+dy*dy);
+  if(d>maxR){dx=dx/d*maxR;dy=dy/d*maxR;}
+  joyX=dx/maxR;joyY=dy/maxR;
+  const br=joystickBase.getBoundingClientRect();
+  joystickKnob.style.left=(50+dx/br.width*100)+'%';
+  joystickKnob.style.bottom=(50+dy/br.height*100)+'%';
+}
+
+// Keyboard
+const keys={};
+window.addEventListener('keydown',(e)=>{keys[e.key]=true;});
+window.addEventListener('keyup',(e)=>{keys[e.key]=false;});
+
+// Fire
+let firePressed=false;
+const fireBtn=document.getElementById('fireBtn');
+fireBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();firePressed=true;},{passive:false});
+fireBtn.addEventListener('touchend',(e)=>{e.preventDefault();firePressed=false;});
+fireBtn.addEventListener('mousedown',(e)=>{e.stopPropagation();firePressed=true;});
+fireBtn.addEventListener('mouseup',()=>{firePressed=false;});
+
+// Camera rotation via touch on canvas (not joystick area)
+let camTouchId=null,camLastX=0,camLastY=0;
+let camYaw=0,camPitch=0.4;
+
+canvas.addEventListener('touchstart',(e)=>{
+  if(camTouchId!==null)return;
+  const t=e.changedTouches[0];
+  camTouchId=t.identifier;
+  camLastX=t.clientX;camLastY=t.clientY;
+},{passive:true});
+canvas.addEventListener('touchmove',(e)=>{
+  for(const t of e.changedTouches){
+    if(t.identifier===camTouchId){
+      const dx=t.clientX-camLastX,dy=t.clientY-camLastY;
+      camYaw-=dx*0.005;
+      camPitch=Math.max(0.1,Math.min(1.2,camPitch+dy*0.005));
+      camLastX=t.clientX;camLastY=t.clientY;
     }
-    window.addEventListener('resize', resize);
-    resize();
+  }
+},{passive:true});
+canvas.addEventListener('touchend',(e)=>{
+  for(const t of e.changedTouches){if(t.identifier===camTouchId)camTouchId=null;}
+});
 
-    // ===== ITEMS DEFINITIONS =====
-    const ITEM_DEFS = [
-      { name: 'cereal',  emoji: '🥣', label: 'Хлопья',   w: 55, h: 60, color: '#d4a030', drawFn: drawCerealBox },
-      { name: 'milk',    emoji: '🥛', label: 'Молоко',    w: 40, h: 65, color: '#e8e8f0', drawFn: drawMilkCarton },
-      { name: 'cloth',   emoji: '🧹', label: 'Тряпка',    w: 55, h: 30, color: '#5ba3cf', drawFn: drawCloth },
-      { name: 'plate',   emoji: '🍽️', label: 'Тарелка',  w: 60, h: 20, color: '#f0f0f0', drawFn: drawPlate },
-      { name: 'cup',     emoji: '☕', label: 'Чашка',     w: 35, h: 40, color: '#e07040', drawFn: drawCup },
-      { name: 'bowl',    emoji: '🥗', label: 'Миска',     w: 50, h: 25, color: '#c0d0a0', drawFn: drawBowl },
-      { name: 'spoon',   emoji: '🥄', label: 'Ложка',     w: 15, h: 55, color: '#c0c0c0', drawFn: drawSpoon },
-      { name: 'glass',   emoji: '🥃', label: 'Стакан',    w: 30, h: 50, color: '#a0d8ef', drawFn: drawGlass },
-    ];
+// Mouse camera
+let mouseCam=false;
+canvas.addEventListener('mousedown',(e)=>{mouseCam=true;camLastX=e.clientX;camLastY=e.clientY;});
+canvas.addEventListener('mousemove',(e)=>{
+  if(!mouseCam)return;
+  camYaw-=(e.clientX-camLastX)*0.003;
+  camPitch=Math.max(0.1,Math.min(1.2,camPitch+(e.clientY-camLastY)*0.003));
+  camLastX=e.clientX;camLastY=e.clientY;
+});
+canvas.addEventListener('mouseup',()=>{mouseCam=false;});
 
-    // ===== DRAW FUNCTIONS FOR ITEMS =====
+// ===== Update =====
+let fireCooldown=0;
+const dt=1/60;
 
-    function drawCerealBox(x, y, w, h, s) {
-      // Box
-      ctx.fillStyle = '#c8860a';
-      roundRect(x * s, y * s, w * s, h * s, 4 * s); ctx.fill();
-      // Front face
-      ctx.fillStyle = '#e6a817';
-      roundRect((x + 3) * s, (y + 3) * s, (w - 6) * s, (h - 6) * s, 3 * s); ctx.fill();
-      // Label
-      ctx.fillStyle = '#8b1a1a';
-      ctx.font = `bold ${9 * s}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.fillText('Любятово', (x + w / 2) * s, (y + h / 2 - 4) * s);
-      ctx.fillStyle = '#fff';
-      ctx.font = `${7 * s}px Arial`;
-      ctx.fillText('Хлопья', (x + w / 2) * s, (y + h / 2 + 6) * s);
-      // Top flap
-      ctx.fillStyle = '#a07008';
-      ctx.fillRect((x + 5) * s, y * s, (w - 10) * s, 6 * s);
+function update(){
+  if(!gameRunning)return;
+
+  // Keyboard input
+  if(keys['ArrowUp']||keys['w'])joyY=Math.max(joyY,1);
+  if(keys['ArrowDown']||keys['s'])joyY=Math.min(joyY,-1);
+  if(keys['ArrowLeft']||keys['a'])joyX=Math.min(joyX,-1);
+  if(keys['ArrowRight']||keys['d'])joyX=Math.max(joyX,1);
+  if(keys[' '])firePressed=true;
+
+  // Player movement - move in camera direction
+  const moveAngle=camYaw;
+  if(Math.abs(joyY)>0.1||Math.abs(joyX)>0.1){
+    const mx=-Math.sin(moveAngle)*joyY + Math.cos(moveAngle)*joyX;
+    const mz=-Math.cos(moveAngle)*joyY - Math.sin(moveAngle)*joyX;
+    const sp=8*dt;
+    player.x+=mx*sp;
+    player.z+=mz*sp;
+    // Face movement direction
+    player.angle=Math.atan2(-mx,-mz);
+  }
+
+  // Turret faces camera direction
+  player.turretAngle=camYaw;
+
+  // Clamp world
+  player.x=Math.max(-WORLD,Math.min(WORLD,player.x));
+  player.z=Math.max(-WORLD,Math.min(WORLD,player.z));
+
+  // Fire
+  if(fireCooldown>0)fireCooldown--;
+  if(firePressed&&fireCooldown<=0){
+    fireCooldown=20;
+    const bx=player.x-Math.sin(player.turretAngle)*2;
+    const bz=player.z-Math.cos(player.turretAngle)*2;
+    bullets.push({x:bx,y:1.5,z:bz,
+      vx:-Math.sin(player.turretAngle)*30*dt,
+      vz:-Math.cos(player.turretAngle)*30*dt,
+      life:120,owner:'player'});
+    firePressed=false;
+  }
+
+  // Enemies AI
+  for(const e of enemies){
+    // Move
+    e.moveTimer--;
+    if(e.moveTimer<=0){
+      e.moveTimer=60+Math.random()*120;
+      e.angle=Math.atan2(player.x-e.x,player.z-e.z);
+      e.speed=3+Math.random()*2;
     }
+    e.x+=Math.sin(e.angle)*e.speed*dt;
+    e.z+=Math.cos(e.angle)*e.speed*dt;
+    e.x=Math.max(-WORLD,Math.min(WORLD,e.x));
+    e.z=Math.max(-WORLD,Math.min(WORLD,e.z));
 
-    function drawMilkCarton(x, y, w, h, s) {
-      // Carton body
-      ctx.fillStyle = '#e0e8f5';
-      roundRect(x * s, (y + 8) * s, w * s, (h - 8) * s, 3 * s); ctx.fill();
-      // Top triangle
-      ctx.fillStyle = '#c0c8e0';
-      ctx.beginPath();
-      ctx.moveTo(x * s, (y + 8) * s);
-      ctx.lineTo((x + w / 2) * s, y * s);
-      ctx.lineTo((x + w) * s, (y + 8) * s);
-      ctx.closePath(); ctx.fill();
-      // Label
-      ctx.fillStyle = '#2060c0';
-      ctx.font = `bold ${8 * s}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.fillText('Молоко', (x + w / 2) * s, (y + h / 2 + 6) * s);
-      // Blue stripe
-      ctx.fillStyle = '#3070d0';
-      ctx.fillRect((x + 3) * s, (y + h / 2 - 8) * s, (w - 6) * s, 4 * s);
+    // Turret aims at player
+    e.turretAngle=Math.atan2(player.x-e.x,player.z-e.z);
+
+    // Shoot
+    e.shootTimer--;
+    if(e.shootTimer<=0){
+      e.shootTimer=80+Math.random()*100;
+      const bx=e.x+Math.sin(e.turretAngle)*2;
+      const bz=e.z+Math.cos(e.turretAngle)*2;
+      bullets.push({x:bx,y:1.5,z:bz,
+        vx:Math.sin(e.turretAngle)*20*dt,
+        vz:Math.cos(e.turretAngle)*20*dt,
+        life:100,owner:'enemy'});
     }
+  }
 
-    function drawCloth(x, y, w, h, s) {
-      // Crumpled cloth shape
-      ctx.fillStyle = '#4a90c0';
-      ctx.beginPath();
-      ctx.moveTo((x + 5) * s, (y + h) * s);
-      ctx.quadraticCurveTo((x) * s, (y + h / 2) * s, (x + 8) * s, y * s);
-      ctx.lineTo((x + w / 2) * s, (y + 4) * s);
-      ctx.quadraticCurveTo((x + w / 2 + 5) * s, (y - 2) * s, (x + w - 5) * s, (y + 2) * s);
-      ctx.quadraticCurveTo((x + w + 2) * s, (y + h / 2) * s, (x + w - 3) * s, (y + h) * s);
-      ctx.closePath(); ctx.fill();
-      // Texture lines
-      ctx.strokeStyle = '#3a7aa8';
-      ctx.lineWidth = 1 * s;
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath();
-        ctx.moveTo((x + 10 + i * 14) * s, (y + 3) * s);
-        ctx.lineTo((x + 7 + i * 14) * s, (y + h - 2) * s);
-        ctx.stroke();
-      }
-    }
+  // Bullets
+  for(let i=bullets.length-1;i>=0;i--){
+    const b=bullets[i];
+    b.x+=b.vx;b.z+=b.vz;b.life--;
+    if(b.life<=0){bullets.splice(i,1);continue;}
 
-    function drawPlate(x, y, w, h, s) {
-      // Plate from above (perspective - ellipse)
-      ctx.fillStyle = '#e8e8e8';
-      ctx.beginPath();
-      ctx.ellipse((x + w / 2) * s, (y + h / 2) * s, (w / 2) * s, (h / 2) * s, 0, 0, Math.PI * 2);
-      ctx.fill();
-      // Inner ring
-      ctx.strokeStyle = '#ccc';
-      ctx.lineWidth = 1.5 * s;
-      ctx.beginPath();
-      ctx.ellipse((x + w / 2) * s, (y + h / 2) * s, (w / 2 - 6) * s, (h / 2 - 3) * s, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      // Shine
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      ctx.beginPath();
-      ctx.ellipse((x + w / 2 - 5) * s, (y + h / 2 - 2) * s, 8 * s, 3 * s, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-      // Rim
-      ctx.strokeStyle = '#bbb';
-      ctx.lineWidth = 2 * s;
-      ctx.beginPath();
-      ctx.ellipse((x + w / 2) * s, (y + h / 2) * s, (w / 2) * s, (h / 2) * s, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    function drawCup(x, y, w, h, s) {
-      // Cup body
-      ctx.fillStyle = '#cc5533';
-      roundRect(x * s, y * s, w * s, h * s, 3 * s); ctx.fill();
-      // Handle
-      ctx.strokeStyle = '#cc5533';
-      ctx.lineWidth = 3 * s;
-      ctx.beginPath();
-      ctx.arc((x + w + 4) * s, (y + h / 2) * s, 7 * s, -Math.PI / 2, Math.PI / 2);
-      ctx.stroke();
-      // Coffee inside
-      ctx.fillStyle = '#3a1a0a';
-      ctx.beginPath();
-      ctx.ellipse((x + w / 2) * s, (y + 4) * s, (w / 2 - 3) * s, 5 * s, 0, 0, Math.PI * 2);
-      ctx.fill();
-      // Steam
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-      ctx.lineWidth = 1.5 * s;
-      for (let i = 0; i < 2; i++) {
-        ctx.beginPath();
-        ctx.moveTo((x + w / 3 + i * w / 3) * s, (y - 2) * s);
-        ctx.quadraticCurveTo((x + w / 3 + i * w / 3 + 3) * s, (y - 8) * s, (x + w / 3 + i * w / 3) * s, (y - 14) * s);
-        ctx.stroke();
-      }
-    }
-
-    function drawBowl(x, y, w, h, s) {
-      // Bowl body
-      ctx.fillStyle = '#a8c070';
-      ctx.beginPath();
-      ctx.ellipse((x + w / 2) * s, (y + h / 2) * s, (w / 2) * s, (h / 2 + 4) * s, 0, 0, Math.PI);
-      ctx.closePath(); ctx.fill();
-      // Rim
-      ctx.fillStyle = '#90a860';
-      ctx.beginPath();
-      ctx.ellipse((x + w / 2) * s, (y + h / 2) * s, (w / 2) * s, (h / 3) * s, 0, 0, Math.PI * 2);
-      ctx.fill();
-      // Inside
-      ctx.fillStyle = '#c8e0a0';
-      ctx.beginPath();
-      ctx.ellipse((x + w / 2) * s, (y + h / 2) * s, (w / 2 - 4) * s, (h / 3 - 2) * s, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    function drawSpoon(x, y, w, h, s) {
-      // Handle
-      ctx.fillStyle = '#b0b0b0';
-      roundRect((x + w / 2 - 2) * s, (y + 15) * s, 4 * s, (h - 15) * s, 2 * s); ctx.fill();
-      // Spoon head
-      ctx.fillStyle = '#c8c8c8';
-      ctx.beginPath();
-      ctx.ellipse((x + w / 2) * s, (y + 9) * s, (w / 2) * s, 9 * s, 0, 0, Math.PI * 2);
-      ctx.fill();
-      // Shine
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      ctx.beginPath();
-      ctx.ellipse((x + w / 2 - 1) * s, (y + 7) * s, 3 * s, 4 * s, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    function drawGlass(x, y, w, h, s) {
-      // Glass body (slightly tapered)
-      ctx.fillStyle = 'rgba(160,216,239,0.5)';
-      ctx.beginPath();
-      ctx.moveTo((x + 3) * s, y * s);
-      ctx.lineTo((x) * s, (y + h) * s);
-      ctx.lineTo((x + w) * s, (y + h) * s);
-      ctx.lineTo((x + w - 3) * s, y * s);
-      ctx.closePath(); ctx.fill();
-      // Water
-      ctx.fillStyle = 'rgba(80,160,220,0.4)';
-      ctx.beginPath();
-      ctx.moveTo((x + 2) * s, (y + h * 0.3) * s);
-      ctx.lineTo((x) * s, (y + h) * s);
-      ctx.lineTo((x + w) * s, (y + h) * s);
-      ctx.lineTo((x + w - 2) * s, (y + h * 0.3) * s);
-      ctx.closePath(); ctx.fill();
-      // Shine
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.fillRect((x + 4) * s, (y + 4) * s, 3 * s, (h - 10) * s);
-      // Rim
-      ctx.strokeStyle = 'rgba(200,230,255,0.6)';
-      ctx.lineWidth = 1.5 * s;
-      ctx.beginPath();
-      ctx.moveTo((x + 3) * s, y * s);
-      ctx.lineTo((x + w - 3) * s, y * s);
-      ctx.stroke();
-    }
-
-    function roundRect(x, y, w, h, r) {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + w - r, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-      ctx.lineTo(x + w, y + h - r);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-      ctx.lineTo(x + r, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
-      ctx.closePath();
-    }
-
-    // ===== GAME STATE =====
-    let gameRunning = false;
-    let score = 0;
-    let bestScore = parseInt(localStorage.getItem('tableCatchBest') || '0');
-    let gameSpeed = 1;
-    let items = [];         // items on the table (stable)
-    let fallingItem = null; // currently falling
-    let caughtItem = null;  // caught by player
-    let catchOffsetX = 0, catchOffsetY = 0;
-    let particles = [];
-    let shakeTimer = 0;
-    let nextFallTimer = 0;
-    let fallDelay = 180; // frames between falls
-    let warningTimer = 0;
-    let warningItem = null;
-    let combo = 0;
-    let comboTexts = [];
-
-    // Table
-    const TABLE_Y = 360;
-    const TABLE_H = 340;
-    const TABLE_TOP = TABLE_Y;
-
-    // Slots on table for items
-    const SLOTS = [
-      { x: 30,  y: TABLE_Y + 20 },
-      { x: 110, y: TABLE_Y + 15 },
-      { x: 200, y: TABLE_Y + 25 },
-      { x: 290, y: TABLE_Y + 18 },
-      { x: 60,  y: TABLE_Y + 90 },
-      { x: 170, y: TABLE_Y + 95 },
-      { x: 280, y: TABLE_Y + 85 },
-      { x: 120, y: TABLE_Y + 155 },
-    ];
-
-    function initItems() {
-      items = [];
-      for (let i = 0; i < ITEM_DEFS.length; i++) {
-        const def = ITEM_DEFS[i];
-        const slot = SLOTS[i];
-        items.push({
-          def: def,
-          x: slot.x,
-          y: slot.y,
-          homeX: slot.x,
-          homeY: slot.y,
-          state: 'stable', // stable, warning, falling, caught, returning
-          vy: 0,
-          vx: 0,
-          wobble: 0,
-          wobbleSpeed: 0,
-          fallProgress: 0,
-          returnProgress: 0,
-        });
-      }
-    }
-
-    function resetGame() {
-      score = 0;
-      gameSpeed = 1;
-      fallingItem = null;
-      caughtItem = null;
-      particles = [];
-      comboTexts = [];
-      shakeTimer = 0;
-      nextFallTimer = 90;
-      fallDelay = 180;
-      combo = 0;
-      warningItem = null;
-      warningTimer = 0;
-      initItems();
-    }
-
-    // ===== TABLE DRAWING =====
-
-    function drawBackground() {
-      // Wall
-      const wallGrad = ctx.createLinearGradient(0, 0, 0, TABLE_Y * sc);
-      wallGrad.addColorStop(0, '#3a2a1a');
-      wallGrad.addColorStop(1, '#5a4030');
-      ctx.fillStyle = wallGrad;
-      ctx.fillRect(0, 0, GW * sc, TABLE_Y * sc);
-
-      // Wall texture (subtle)
-      ctx.fillStyle = 'rgba(0,0,0,0.03)';
-      for (let i = 0; i < 20; i++) {
-        const bx = (i % 5) * 85;
-        const by = Math.floor(i / 5) * 95;
-        ctx.fillRect(bx * sc, by * sc, 80 * sc, 90 * sc);
-      }
-
-      // Window hint
-      ctx.fillStyle = 'rgba(100,150,200,0.08)';
-      roundRect(140 * sc, 30 * sc, 120 * sc, 100 * sc, 5 * sc); ctx.fill();
-      ctx.strokeStyle = 'rgba(200,200,200,0.1)';
-      ctx.lineWidth = 2 * sc;
-      roundRect(140 * sc, 30 * sc, 120 * sc, 100 * sc, 5 * sc); ctx.stroke();
-    }
-
-    function drawTable() {
-      // Table surface (perspective - trapezoidal)
-      const tGrad = ctx.createLinearGradient(0, TABLE_Y * sc, 0, GH * sc);
-      tGrad.addColorStop(0, '#8B6914');
-      tGrad.addColorStop(0.3, '#a07828');
-      tGrad.addColorStop(1, '#6a5010');
-      ctx.fillStyle = tGrad;
-      ctx.beginPath();
-      ctx.moveTo(0, TABLE_Y * sc);
-      ctx.lineTo(GW * sc, TABLE_Y * sc);
-      ctx.lineTo(GW * sc, GH * sc);
-      ctx.lineTo(0, GH * sc);
-      ctx.closePath();
-      ctx.fill();
-
-      // Table edge highlight
-      ctx.fillStyle = '#b08830';
-      ctx.fillRect(0, TABLE_Y * sc, GW * sc, 4 * sc);
-
-      // Wood grain
-      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-      ctx.lineWidth = 1 * sc;
-      for (let i = 0; i < 8; i++) {
-        const gy = TABLE_Y + 30 + i * 42;
-        ctx.beginPath();
-        ctx.moveTo(0, gy * sc);
-        for (let gx = 0; gx < GW; gx += 20) {
-          ctx.lineTo(gx * sc, (gy + Math.sin(gx * 0.05 + i) * 3) * sc);
-        }
-        ctx.stroke();
-      }
-
-      // Tablecloth / runner
-      ctx.fillStyle = 'rgba(180,60,60,0.15)';
-      ctx.fillRect(150 * sc, TABLE_Y * sc, 100 * sc, TABLE_H * sc);
-    }
-
-    // ===== DRAWING HUD =====
-
-    function drawHUD() {
-      // Score
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      roundRect((GW - 130) * sc, 10 * sc, 120 * sc, 55 * sc, 10 * sc); ctx.fill();
-
-      ctx.fillStyle = '#fff';
-      ctx.font = `bold ${12 * sc}px Arial`;
-      ctx.textAlign = 'right';
-      ctx.fillText('Поймано', (GW - 20) * sc, 30 * sc);
-
-      ctx.fillStyle = '#ff9f1c';
-      ctx.font = `bold ${24 * sc}px Arial`;
-      ctx.fillText(score.toString(), (GW - 20) * sc, 55 * sc);
-
-      // Speed
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      roundRect(10 * sc, 10 * sc, 100 * sc, 55 * sc, 10 * sc); ctx.fill();
-
-      ctx.fillStyle = '#fff';
-      ctx.font = `bold ${12 * sc}px Arial`;
-      ctx.textAlign = 'left';
-      ctx.fillText('Скорость', 22 * sc, 30 * sc);
-
-      const spLvl = Math.floor(gameSpeed * 10) / 10;
-      ctx.fillStyle = gameSpeed > 2.5 ? '#ff4444' : gameSpeed > 1.5 ? '#ffaa00' : '#00ff88';
-      ctx.font = `bold ${22 * sc}px Arial`;
-      ctx.fillText(spLvl + 'x', 22 * sc, 55 * sc);
-    }
-
-    // ===== COMBO TEXT =====
-
-    function addComboText(x, y, text, color) {
-      comboTexts.push({ x, y, text, color, life: 60, maxLife: 60 });
-    }
-
-    function updateComboTexts() {
-      for (let i = comboTexts.length - 1; i >= 0; i--) {
-        comboTexts[i].y -= 0.8;
-        comboTexts[i].life--;
-        if (comboTexts[i].life <= 0) comboTexts.splice(i, 1);
-      }
-    }
-
-    function drawComboTexts() {
-      for (const ct of comboTexts) {
-        const alpha = ct.life / ct.maxLife;
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = ct.color;
-        ctx.font = `bold ${18 * sc}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.fillText(ct.text, ct.x * sc, ct.y * sc);
-      }
-      ctx.globalAlpha = 1;
-    }
-
-    // ===== PARTICLES =====
-
-    function spawnCatchParticles(x, y) {
-      for (let i = 0; i < 12; i++) {
-        const a = Math.random() * Math.PI * 2;
-        const v = 1 + Math.random() * 3;
-        particles.push({
-          x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-          life: 25 + Math.random() * 15, maxLife: 25 + Math.random() * 15,
-          size: 2 + Math.random() * 3,
-          color: ['#ffdd44', '#ff9f1c', '#ffee88'][Math.floor(Math.random() * 3)]
-        });
-      }
-    }
-
-    function spawnBreakParticles(x, y) {
-      for (let i = 0; i < 20; i++) {
-        const a = Math.random() * Math.PI * 2;
-        const v = 2 + Math.random() * 5;
-        particles.push({
-          x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2,
-          life: 40 + Math.random() * 20, maxLife: 40 + Math.random() * 20,
-          size: 2 + Math.random() * 5,
-          color: ['#ff3300', '#ff6600', '#880000', '#555'][Math.floor(Math.random() * 4)]
-        });
-      }
-    }
-
-    function updateParticles() {
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.x += p.vx; p.y += p.vy;
-        p.vy += 0.1;
-        p.vx *= 0.97;
-        p.life--;
-        if (p.life <= 0) particles.splice(i, 1);
-      }
-    }
-
-    function drawParticles() {
-      for (const p of particles) {
-        ctx.globalAlpha = p.life / p.maxLife;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x * sc, p.y * sc, p.size * sc, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-    }
-
-    // ===== INPUT =====
-
-    let touchActive = false;
-
-    function getPos(e) {
-      const rect = canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return { x: (clientX - rect.left) / sc, y: (clientY - rect.top) / sc };
-    }
-
-    function onDown(e) {
-      e.preventDefault();
-      if (!gameRunning) return;
-      const pos = getPos(e);
-      touchActive = true;
-
-      // Check if touching the falling item
-      if (fallingItem && fallingItem.state === 'falling') {
-        const it = fallingItem;
-        const ix = it.x, iy = it.y;
-        const iw = it.def.w, ih = it.def.h;
-        // Generous hit area
-        if (pos.x > ix - 15 && pos.x < ix + iw + 15 && pos.y > iy - 15 && pos.y < iy + ih + 15) {
-          it.state = 'caught';
-          caughtItem = it;
-          catchOffsetX = ix - pos.x;
-          catchOffsetY = iy - pos.y;
-          spawnCatchParticles(ix + iw / 2, iy + ih / 2);
-        }
-      }
-    }
-
-    function onMove(e) {
-      e.preventDefault();
-      if (!gameRunning || !touchActive || !caughtItem) return;
-      const pos = getPos(e);
-      caughtItem.x = pos.x + catchOffsetX;
-      caughtItem.y = pos.y + catchOffsetY;
-    }
-
-    function onUp(e) {
-      e.preventDefault();
-      touchActive = false;
-      if (!gameRunning || !caughtItem) return;
-
-      const it = caughtItem;
-      // Check if placed near home position
-      const dx = it.x - it.homeX;
-      const dy = it.y - it.homeY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < 60) {
-        // Success! Placed back
-        it.x = it.homeX;
-        it.y = it.homeY;
-        it.state = 'stable';
-        fallingItem = null;
-        caughtItem = null;
-        score++;
-        combo++;
-        gameSpeed = 1 + score * 0.08;
-        fallDelay = Math.max(40, 180 - score * 8);
-        nextFallTimer = fallDelay;
-
-        const comboText = combo >= 5 ? 'СУПЕР x' + combo + '!' : combo >= 3 ? 'Комбо x' + combo + '!' : '+1';
-        const comboColor = combo >= 5 ? '#ff3333' : combo >= 3 ? '#ff9f1c' : '#ffdd44';
-        addComboText(it.homeX + it.def.w / 2, it.homeY - 10, comboText, comboColor);
-        spawnCatchParticles(it.homeX + it.def.w / 2, it.homeY + it.def.h / 2);
-      } else {
-        // Dropped it! - let it fall again
-        it.state = 'falling';
-        it.vy = 0;
-        caughtItem = null;
-        combo = 0;
-      }
-    }
-
-    canvas.addEventListener('touchstart', onDown, { passive: false });
-    canvas.addEventListener('touchmove', onMove, { passive: false });
-    canvas.addEventListener('touchend', onUp, { passive: false });
-    canvas.addEventListener('mousedown', onDown);
-    canvas.addEventListener('mousemove', onMove);
-    canvas.addEventListener('mouseup', onUp);
-    canvas.addEventListener('mouseleave', (e) => { if (touchActive) onUp(e); });
-
-    // ===== GAME LOGIC =====
-
-    function pickRandomStableItem() {
-      const stable = items.filter(it => it.state === 'stable');
-      if (stable.length === 0) return null;
-      return stable[Math.floor(Math.random() * stable.length)];
-    }
-
-    function startItemFall(item) {
-      // First show warning wobble
-      item.state = 'warning';
-      item.wobble = 0;
-      item.wobbleSpeed = 0.3;
-      warningItem = item;
-      warningTimer = Math.max(20, 50 - score * 2); // warning gets shorter over time
-    }
-
-    function triggerFall(item) {
-      item.state = 'falling';
-      item.vy = 0;
-      item.vx = (Math.random() - 0.5) * 2;
-      fallingItem = item;
-      warningItem = null;
-    }
-
-    function update() {
-      if (!gameRunning) {
-        updateParticles();
-        return;
-      }
-
-      // Warning wobble
-      if (warningItem) {
-        warningTimer--;
-        warningItem.wobble = Math.sin(warningTimer * warningItem.wobbleSpeed) * 4;
-        if (warningTimer <= 0) {
-          triggerFall(warningItem);
-        }
-      }
-
-      // Falling physics
-      if (fallingItem && fallingItem.state === 'falling') {
-        fallingItem.vy += 0.15 * gameSpeed;
-        fallingItem.y += fallingItem.vy;
-        fallingItem.x += fallingItem.vx;
-
-        // Fell off screen = game over
-        if (fallingItem.y > GH + 20) {
-          spawnBreakParticles(fallingItem.x + fallingItem.def.w / 2, GH - 20);
-          shakeTimer = 15;
-          gameRunning = false;
-          combo = 0;
-
-          if (score > bestScore) {
-            bestScore = score;
-            localStorage.setItem('tableCatchBest', bestScore.toString());
+    // Hit enemies
+    if(b.owner==='player'){
+      for(let j=enemies.length-1;j>=0;j--){
+        const e=enemies[j];
+        const dx=b.x-e.x,dz=b.z-e.z;
+        if(dx*dx+dz*dz<4){
+          e.hp--;
+          bullets.splice(i,1);
+          if(e.hp<=0){
+            explosions.push({x:e.x,y:1,z:e.z,t:0});
+            enemies.splice(j,1);
+            kills++;
+            document.getElementById('kills').textContent=kills;
+            // Spawn new
+            setTimeout(()=>{if(gameRunning)spawnEnemy();},2000);
+            if(kills%5===0)spawnEnemy(); // extra enemy every 5 kills
           }
-
-          setTimeout(() => {
-            finalScoreEl.textContent = score;
-            bestScoreEl.textContent = 'Лучший: ' + bestScore;
-            gameOverScreen.style.display = 'flex';
-          }, 600);
+          break;
         }
       }
+      if(!bullets[i])continue;
+    }
 
-      // Timer for next fall
-      if (!fallingItem && !warningItem) {
-        nextFallTimer--;
-        if (nextFallTimer <= 0) {
-          const item = pickRandomStableItem();
-          if (item) startItemFall(item);
-          nextFallTimer = fallDelay;
+    // Hit player
+    if(b.owner==='enemy'){
+      const dx=b.x-player.x,dz=b.z-player.z;
+      if(dx*dx+dz*dz<3){
+        player.hp--;
+        bullets.splice(i,1);
+        updateHpBar();
+        if(player.hp<=0){
+          explosions.push({x:player.x,y:1,z:player.z,t:0});
+          gameOver();
         }
+        continue;
       }
-
-      // Screen shake
-      if (shakeTimer > 0) shakeTimer--;
-
-      updateParticles();
-      updateComboTexts();
     }
+  }
 
-    function draw() {
-      ctx.save();
+  // Explosions
+  for(let i=explosions.length-1;i>=0;i--){
+    explosions[i].t+=dt;
+    if(explosions[i].t>1.5)explosions.splice(i,1);
+  }
+}
 
-      // Screen shake
-      if (shakeTimer > 0) {
-        const sx = (Math.random() - 0.5) * shakeTimer * 0.8;
-        const sy = (Math.random() - 0.5) * shakeTimer * 0.8;
-        ctx.translate(sx * sc, sy * sc);
+function updateHpBar(){
+  const pct=Math.max(0,player.hp/player.maxHp*100);
+  const fill=document.getElementById('hpFill');
+  fill.style.width=pct+'%';
+  fill.style.background=pct>50?'#4f4':pct>25?'#fa0':'#f33';
+}
+
+function gameOver(){
+  gameRunning=false;
+  if(kills>bestKills){bestKills=kills;localStorage.setItem('tank3dBest',bestKills.toString());}
+  setTimeout(()=>{
+    document.getElementById('finalKills').textContent=kills;
+    document.getElementById('bestKills').textContent='Лучший: '+bestKills;
+    document.getElementById('gameOverScreen').style.display='flex';
+  },800);
+}
+
+// ===== Render =====
+function render(){
+  gl.clearColor(0.55,0.75,0.95,1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+
+  const asp=canvas.width/canvas.height;
+  const proj=mat4Pers(Math.PI/3,asp,0.5,300);
+
+  // Camera behind player
+  const camDist=12;
+  const camH=5+camPitch*6;
+  const eyeX=player.x+Math.sin(camYaw)*camDist;
+  const eyeZ=player.z+Math.cos(camYaw)*camDist;
+  const view=mat4LookAt([eyeX,camH,eyeZ],[player.x,1,player.z],[0,1,0]);
+  const vp=mat4Mul(proj,view);
+
+  // Ground
+  let m=mat4Mul(mat4Trans(0,-0.1,0),mat4Scale(WORLD*2,0.2,WORLD*2));
+  drawBox(mat4Mul(vp,m),m,[0.35,0.55,0.25],1);
+
+  // Grid lines on ground
+  for(let i=-WORLD;i<=WORLD;i+=20){
+    m=mat4Mul(mat4Trans(i,0.01,0),mat4Scale(0.1,0.01,WORLD*2));
+    drawBox(mat4Mul(vp,m),m,[0.3,0.5,0.2],1);
+    m=mat4Mul(mat4Trans(0,0.01,i),mat4Scale(WORLD*2,0.01,0.1));
+    drawBox(mat4Mul(vp,m),m,[0.3,0.5,0.2],1);
+  }
+
+  // Obstacles
+  for(const o of obstacles){
+    m=mat4Mul(mat4Trans(o.x,o.h/2,o.z),mat4Scale(o.w,o.h,o.d));
+    drawBox(mat4Mul(vp,m),m,o.color,1);
+  }
+
+  // Draw tank helper
+  function drawTank(tx,tz,bodyAngle,turretAngle,bodyColor,turretColor,trackColor){
+    // Body (lower cube)
+    let bm=mat4Mul(mat4Trans(tx,0.6,tz),mat4Mul(mat4RotY(bodyAngle),mat4Scale(2.4,0.8,3)));
+    drawBox(mat4Mul(vp,bm),bm,bodyColor,1);
+
+    // Tracks
+    let tl=mat4Mul(mat4Trans(tx,0.35,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.3,0,0),mat4Scale(0.4,0.5,3.2))));
+    drawBox(mat4Mul(vp,tl),tl,trackColor,1);
+    let tr=mat4Mul(mat4Trans(tx,0.35,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.3,0,0),mat4Scale(0.4,0.5,3.2))));
+    drawBox(mat4Mul(vp,tr),tr,trackColor,1);
+
+    // Turret (upper cube)
+    let tm=mat4Mul(mat4Trans(tx,1.35,tz),mat4Mul(mat4RotY(turretAngle),mat4Scale(1.6,0.7,1.6)));
+    drawBox(mat4Mul(vp,tm),tm,turretColor,1);
+
+    // Barrel
+    let barrel=mat4Mul(mat4Trans(tx,1.4,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-1.8),mat4Scale(0.3,0.3,2))));
+    drawBox(mat4Mul(vp,barrel),barrel,trackColor,1);
+  }
+
+  // Player tank
+  if(gameRunning||explosions.some(e=>e.t<0.5)){
+    if(player.hp>0){
+      drawTank(player.x,player.z,player.angle,player.turretAngle,
+        [0.2,0.4,0.7],[0.15,0.3,0.6],[0.15,0.15,0.2]);
+    }
+  }
+
+  // Enemy tanks
+  for(const e of enemies){
+    drawTank(e.x,e.z,e.angle,e.turretAngle,e.color,e.turretColor,[0.15,0.2,0.1]);
+  }
+
+  // Bullets
+  for(const b of bullets){
+    const bc=b.owner==='player'?[1,0.8,0.2]:[1,0.3,0.2];
+    m=mat4Mul(mat4Trans(b.x,b.y,b.z),mat4Scale(0.2,0.2,0.2));
+    drawBox(mat4Mul(vp,m),m,bc,0);
+  }
+
+  // Explosions
+  for(const e of explosions){
+    const s=1+e.t*6;
+    const a=Math.max(0,1-e.t/1.5);
+    m=mat4Mul(mat4Trans(e.x,e.y+e.t*2,e.z),mat4Scale(s,s,s));
+    drawBox(mat4Mul(vp,m),m,[1*a,0.5*a,0.1*a],0);
+    // Smaller pieces
+    for(let i=0;i<3;i++){
+      const ox=Math.sin(i*2.1+e.t*5)*e.t*4;
+      const oz=Math.cos(i*2.1+e.t*5)*e.t*4;
+      const ss=0.5*(1-e.t);
+      if(ss>0){
+        m=mat4Mul(mat4Trans(e.x+ox,e.y+e.t*3+i,e.z+oz),mat4Scale(ss,ss,ss));
+        drawBox(mat4Mul(vp,m),m,[1*a,0.3*a,0],0);
       }
-
-      ctx.clearRect(-10, -10, GW * sc + 20, GH * sc + 20);
-
-      drawBackground();
-      drawTable();
-
-      // Draw items
-      for (const it of items) {
-        if (it.state === 'stable') {
-          it.def.drawFn(it.x, it.y, it.def.w, it.def.h, sc);
-        } else if (it.state === 'warning') {
-          it.def.drawFn(it.x + it.wobble, it.y, it.def.w, it.def.h, sc);
-          // Warning indicator
-          ctx.fillStyle = 'rgba(255,50,50,0.7)';
-          ctx.font = `bold ${16 * sc}px Arial`;
-          ctx.textAlign = 'center';
-          ctx.fillText('⚠️', (it.x + it.wobble + it.def.w / 2) * sc, (it.y - 12) * sc);
-        } else if (it.state === 'falling' || it.state === 'caught') {
-          // Shadow on table
-          ctx.fillStyle = 'rgba(0,0,0,0.15)';
-          ctx.beginPath();
-          ctx.ellipse((it.homeX + it.def.w / 2) * sc, (it.homeY + it.def.h / 2) * sc,
-            it.def.w / 2 * sc, 6 * sc, 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Ghost outline on home position
-          ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-          ctx.lineWidth = 2 * sc;
-          ctx.setLineDash([4 * sc, 4 * sc]);
-          ctx.strokeRect(it.homeX * sc, it.homeY * sc, it.def.w * sc, it.def.h * sc);
-          ctx.setLineDash([]);
-
-          // Draw the item at current position
-          it.def.drawFn(it.x, it.y, it.def.w, it.def.h, sc);
-
-          // Glow if caught
-          if (it.state === 'caught') {
-            ctx.shadowColor = '#ff9f1c';
-            ctx.shadowBlur = 15 * sc;
-            ctx.fillStyle = 'rgba(255,159,28,0.1)';
-            ctx.fillRect(it.x * sc, it.y * sc, it.def.w * sc, it.def.h * sc);
-            ctx.shadowBlur = 0;
-          }
-        }
-      }
-
-      drawParticles();
-      drawComboTexts();
-
-      if (gameRunning) drawHUD();
-
-      ctx.restore();
     }
+  }
 
-    function loop() {
-      update();
-      draw();
-      requestAnimationFrame(loop);
-    }
+  // Clouds (simple cubes in sky)
+  for(let i=0;i<15;i++){
+    const cx=(Math.sin(i*7.3)*80);
+    const cz=(Math.cos(i*5.1)*80);
+    const cy=35+Math.sin(i*3.7)*5;
+    const cw=8+Math.sin(i*2.3)*4;
+    m=mat4Mul(mat4Trans(cx+player.x*0.1,cy,cz+player.z*0.1),mat4Scale(cw,1.5,cw*0.6));
+    drawBox(mat4Mul(vp,m),m,[0.95,0.95,0.98],0);
+  }
 
-    // ===== START =====
+  // Minimap
+  drawMinimap();
+}
 
-    function startGame() {
-      resetGame();
-      gameRunning = true;
-      startScreen.style.display = 'none';
-      gameOverScreen.style.display = 'none';
-    }
+// ===== Minimap =====
+const minimapCanvas=document.getElementById('minimap');
+const mctx=minimapCanvas.getContext('2d');
+minimapCanvas.width=100;minimapCanvas.height=100;
 
-    document.getElementById('startBtn').addEventListener('click', (e) => { e.preventDefault(); startGame(); });
-    document.getElementById('startBtn').addEventListener('touchend', (e) => { e.preventDefault(); startGame(); });
-    document.getElementById('restartBtn').addEventListener('click', (e) => { e.preventDefault(); startGame(); });
-    document.getElementById('restartBtn').addEventListener('touchend', (e) => { e.preventDefault(); startGame(); });
+function drawMinimap(){
+  mctx.clearRect(0,0,100,100);
+  mctx.fillStyle='rgba(30,60,30,0.6)';
+  mctx.fillRect(0,0,100,100);
 
-    loop();
-  </script>
+  const s=100/(WORLD*2);
+  const ox=50-player.x*s;
+  const oz=50-player.z*s;
+
+  // Obstacles
+  mctx.fillStyle='rgba(100,80,50,0.5)';
+  for(const o of obstacles){
+    mctx.fillRect(o.x*s+ox-1,o.z*s+oz-1,3,3);
+  }
+
+  // Enemies
+  mctx.fillStyle='#f44';
+  for(const e of enemies){
+    mctx.beginPath();
+    mctx.arc(e.x*s+ox,e.z*s+oz,2.5,0,Math.PI*2);
+    mctx.fill();
+  }
+
+  // Player
+  mctx.fillStyle='#48f';
+  mctx.beginPath();
+  mctx.arc(50,50,3,0,Math.PI*2);
+  mctx.fill();
+
+  // Player direction
+  mctx.strokeStyle='#48f';
+  mctx.lineWidth=1.5;
+  mctx.beginPath();
+  mctx.moveTo(50,50);
+  mctx.lineTo(50-Math.sin(player.turretAngle)*8,50-Math.cos(player.turretAngle)*8);
+  mctx.stroke();
+}
+
+// ===== Loop =====
+function loop(){
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ===== Start =====
+function startGame(){
+  resetGame();
+  gameRunning=true;
+  document.getElementById('startScreen').style.display='none';
+  document.getElementById('gameOverScreen').style.display='none';
+  document.getElementById('kills').textContent='0';
+  updateHpBar();
+  player.hp=player.maxHp;
+}
+
+document.getElementById('startBtn').addEventListener('click',(e)=>{e.preventDefault();startGame();});
+document.getElementById('startBtn').addEventListener('touchend',(e)=>{e.preventDefault();startGame();});
+document.getElementById('restartBtn').addEventListener('click',(e)=>{e.preventDefault();startGame();});
+document.getElementById('restartBtn').addEventListener('touchend',(e)=>{e.preventDefault();startGame();});
+
+loop();
+</script>
 </body>
 </html>

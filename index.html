@@ -399,22 +399,66 @@ function update(){
     player.angle=Math.atan2(-mx,-mz);
   }
 
-  // Turret faces camera direction
-  player.turretAngle=camYaw;
+  // Push player away from enemies (tank collision)
+  for(const e of enemies){
+    const dx=player.x-e.x, dz=player.z-e.z;
+    const dist=Math.sqrt(dx*dx+dz*dz);
+    const minDist=3.5; // tank size ~3 wide
+    if(dist<minDist&&dist>0.01){
+      const push=(minDist-dist)*0.5;
+      const nx=dx/dist, nz=dz/dist;
+      player.x+=nx*push;
+      player.z+=nz*push;
+      e.x-=nx*push;
+      e.z-=nz*push;
+    }
+  }
+
+  // Push player away from obstacles
+  for(const o of obstacles){
+    const hw=o.w/2+1.5, hd=o.d/2+1.5;
+    const dx=player.x-o.x, dz=player.z-o.z;
+    if(Math.abs(dx)<hw&&Math.abs(dz)<hd){
+      const overlapX=hw-Math.abs(dx), overlapZ=hd-Math.abs(dz);
+      if(overlapX<overlapZ){player.x+=Math.sign(dx)*overlapX;}
+      else{player.z+=Math.sign(dz)*overlapZ;}
+    }
+  }
+
+  // Push enemies away from each other
+  for(let i=0;i<enemies.length;i++){
+    for(let j=i+1;j<enemies.length;j++){
+      const a=enemies[i],b=enemies[j];
+      const dx=a.x-b.x, dz=a.z-b.z;
+      const dist=Math.sqrt(dx*dx+dz*dz);
+      const minDist=3.5;
+      if(dist<minDist&&dist>0.01){
+        const push=(minDist-dist)*0.3;
+        const nx=dx/dist, nz=dz/dist;
+        a.x+=nx*push; a.z+=nz*push;
+        b.x-=nx*push; b.z-=nz*push;
+      }
+    }
+  }
+
+  // Turret faces camera direction (barrel is -Z, so flip by PI)
+  player.turretAngle=camYaw+Math.PI;
 
   // Clamp world
   player.x=Math.max(-WORLD,Math.min(WORLD,player.x));
   player.z=Math.max(-WORLD,Math.min(WORLD,player.z));
 
-  // Fire
+  // Fire - barrel points in -Z of turret local space
   if(fireCooldown>0)fireCooldown--;
   if(firePressed&&fireCooldown<=0){
     fireCooldown=20;
-    const bx=player.x-Math.sin(player.turretAngle)*2;
-    const bz=player.z-Math.cos(player.turretAngle)*2;
+    const dirX=-Math.sin(player.turretAngle);
+    const dirZ=-Math.cos(player.turretAngle);
+    const bx=player.x+dirX*3;
+    const bz=player.z+dirZ*3;
     bullets.push({x:bx,y:1.5,z:bz,
-      vx:-Math.sin(player.turretAngle)*30*dt,
-      vz:-Math.cos(player.turretAngle)*30*dt,
+      vx:dirX*30*dt,
+      vz:dirZ*30*dt,
       life:120,owner:'player'});
     firePressed=false;
   }
@@ -433,18 +477,20 @@ function update(){
     e.x=Math.max(-WORLD,Math.min(WORLD,e.x));
     e.z=Math.max(-WORLD,Math.min(WORLD,e.z));
 
-    // Turret aims at player
-    e.turretAngle=Math.atan2(player.x-e.x,player.z-e.z);
+    // Turret aims at player (barrel is -Z, so flip by PI)
+    e.turretAngle=Math.atan2(player.x-e.x,player.z-e.z)+Math.PI;
 
-    // Shoot
+    // Shoot - barrel points in negative local Z, so direction is -sin/-cos of turretAngle
     e.shootTimer--;
     if(e.shootTimer<=0){
       e.shootTimer=80+Math.random()*100;
-      const bx=e.x+Math.sin(e.turretAngle)*2;
-      const bz=e.z+Math.cos(e.turretAngle)*2;
+      const dirX=-Math.sin(e.turretAngle);
+      const dirZ=-Math.cos(e.turretAngle);
+      const bx=e.x+dirX*3;
+      const bz=e.z+dirZ*3;
       bullets.push({x:bx,y:1.5,z:bz,
-        vx:Math.sin(e.turretAngle)*20*dt,
-        vz:Math.cos(e.turretAngle)*20*dt,
+        vx:dirX*20*dt,
+        vz:dirZ*20*dt,
         life:100,owner:'enemy'});
     }
   }

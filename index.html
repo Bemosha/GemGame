@@ -373,7 +373,7 @@ function spawnEnemy(){
     z:player.z+Math.sin(a)*r,
     angle:Math.random()*Math.PI*2,
     turretAngle:Math.random()*Math.PI*2,
-    hp:ehp,
+    hp:ehp,maxHp:ehp,
     speed:espeed,
     moveTimer:0,
     shootTimer:eshoot,
@@ -772,9 +772,24 @@ function render(){
     }
   }
 
-  // Enemy tanks
+  // Enemy tanks + HP bars
   for(const e of enemies){
     drawTank(e.x,e.z,e.angle,e.turretAngle,e.color,e.turretColor,[0.15,0.2,0.1]);
+
+    // HP bar above tank (billboard - always faces camera)
+    const hpPct=e.hp/e.maxHp;
+    const barW=2.5;
+    const barH=0.25;
+    const barY=2.6;
+    // Background (dark)
+    m=mat4Mul(mat4Trans(e.x,barY,e.z),mat4Mul(mat4RotY(camYaw),mat4Scale(barW,barH,0.05)));
+    drawBox(mat4Mul(vp,m),m,[0.15,0.15,0.15],0);
+    // Fill (green->yellow->red)
+    const fillW=barW*hpPct;
+    const hpColor=hpPct>0.6?[0.2,0.8,0.2]:hpPct>0.3?[0.9,0.7,0.1]:[0.9,0.15,0.15];
+    const offsetX=(fillW-barW)/2;
+    m=mat4Mul(mat4Trans(e.x,barY,e.z),mat4Mul(mat4RotY(camYaw),mat4Mul(mat4Trans(offsetX,0,-0.01),mat4Scale(fillW,barH,0.05))));
+    drawBox(mat4Mul(vp,m),m,hpColor,0);
   }
 
   // Bullets

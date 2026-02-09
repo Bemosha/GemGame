@@ -16,8 +16,9 @@
     #hpFill{width:100%;height:100%;background:#4f4;border-radius:5px;transition:width 0.3s}
     #fireBtn{position:absolute;bottom:30px;right:30px;width:80px;height:80px;border-radius:50%;
       background:radial-gradient(circle at 35% 35%,#ff6644,#cc2200);border:3px solid rgba(255,255,255,0.3);
-      color:#fff;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:center;
-      pointer-events:auto;cursor:pointer;box-shadow:0 0 20px rgba(255,50,0,0.4);text-shadow:0 1px 2px rgba(0,0,0,0.5)}
+      color:#fff;font-size:12px;font-weight:bold;display:flex;align-items:center;justify-content:center;
+      pointer-events:auto;cursor:pointer;box-shadow:0 0 20px rgba(255,50,0,0.4);text-shadow:0 1px 2px rgba(0,0,0,0.5);
+      text-align:center;line-height:1.2}
     #fireBtn:active{transform:scale(0.9);background:radial-gradient(circle at 35% 35%,#ff8866,#ee4422)}
     #joystickArea{position:absolute;bottom:20px;left:20px;width:150px;height:150px;pointer-events:auto}
     #joystickBase{width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);
@@ -45,7 +46,7 @@
 <div id="hud">
   <div id="score">Уничтожено: <span id="kills">0</span></div>
   <div id="hp">HP<div id="hpBar"><div id="hpFill"></div></div></div>
-  <div id="fireBtn">ОГОНЬ</div>
+  <div id="fireBtn">АВТО<br>ОГОНЬ</div>
   <div id="joystickArea">
     <div id="joystickBase"></div>
     <div id="joystickKnob"></div>
@@ -569,16 +570,29 @@ function update(){
     }
   }
 
-  // Turret faces away from camera (barrel is -Z local, camera is +Z)
-  player.turretAngle=camYaw;
+  // Turret auto-aims at nearest enemy
+  let nearestEnemy=null,nearestDist=Infinity;
+  for(const e of enemies){
+    const dx=e.x-player.x,dz=e.z-player.z;
+    const d=Math.sqrt(dx*dx+dz*dz);
+    if(d<nearestDist){nearestDist=d;nearestEnemy=e;}
+  }
+  if(nearestEnemy&&nearestDist<60){
+    // Auto-aim turret at nearest enemy (barrel is -Z, so add PI)
+    player.turretAngle=Math.atan2(nearestEnemy.x-player.x,nearestEnemy.z-player.z)+Math.PI;
+  } else {
+    // No enemy nearby — face camera direction
+    player.turretAngle=camYaw;
+  }
 
   // Clamp world
   player.x=Math.max(-WORLD,Math.min(WORLD,player.x));
   player.z=Math.max(-WORLD,Math.min(WORLD,player.z));
 
-  // Fire - barrel points in -Z of turret local space
+  // Auto-fire when enemy in range
   if(fireCooldown>0)fireCooldown--;
-  if(firePressed&&fireCooldown<=0){
+  const autoFire=nearestEnemy&&nearestDist<55&&fireCooldown<=0;
+  if((firePressed||autoFire)&&fireCooldown<=0){
     fireCooldown=20;
     const dirX=-Math.sin(player.turretAngle);
     const dirZ=-Math.cos(player.turretAngle);

@@ -441,8 +441,8 @@ function update(){
     }
   }
 
-  // Turret faces camera direction (barrel is -Z, so flip by PI)
-  player.turretAngle=camYaw+Math.PI;
+  // Turret faces away from camera (barrel is -Z local, camera is +Z)
+  player.turretAngle=camYaw;
 
   // Clamp world
   player.x=Math.max(-WORLD,Math.min(WORLD,player.x));

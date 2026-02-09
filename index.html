@@ -779,17 +779,22 @@ function render(){
     // HP bar above tank (billboard - always faces camera)
     const hpPct=e.hp/e.maxHp;
     const barW=2.5;
-    const barH=0.25;
-    const barY=2.6;
-    // Background (dark)
-    m=mat4Mul(mat4Trans(e.x,barY,e.z),mat4Mul(mat4RotY(camYaw),mat4Scale(barW,barH,0.05)));
-    drawBox(mat4Mul(vp,m),m,[0.15,0.15,0.15],0);
-    // Fill (green->yellow->red)
-    const fillW=barW*hpPct;
-    const hpColor=hpPct>0.6?[0.2,0.8,0.2]:hpPct>0.3?[0.9,0.7,0.1]:[0.9,0.15,0.15];
-    const offsetX=(fillW-barW)/2;
-    m=mat4Mul(mat4Trans(e.x,barY,e.z),mat4Mul(mat4RotY(camYaw),mat4Mul(mat4Trans(offsetX,0,-0.01),mat4Scale(fillW,barH,0.05))));
-    drawBox(mat4Mul(vp,m),m,hpColor,0);
+    const barH=0.3;
+    const barY=2.8;
+    // Background (dark red)
+    m=mat4Mul(mat4Trans(e.x,barY,e.z),mat4Mul(mat4RotY(camYaw),mat4Scale(barW+0.15,barH+0.1,0.05)));
+    drawBox(mat4Mul(vp,m),m,[0.1,0.1,0.1],0);
+    // Empty part (dark)
+    m=mat4Mul(mat4Trans(e.x,barY,e.z),mat4Mul(mat4RotY(camYaw),mat4Mul(mat4Trans(0,0,-0.06),mat4Scale(barW,barH,0.05))));
+    drawBox(mat4Mul(vp,m),m,[0.3,0.05,0.05],0);
+    // Filled part (green->yellow->red based on HP)
+    if(hpPct>0.01){
+      const fillW=barW*hpPct;
+      const hpColor=hpPct>0.6?[0.1,0.85,0.1]:hpPct>0.3?[0.95,0.75,0.05]:[0.95,0.1,0.1];
+      const shiftX=(fillW-barW)/2;
+      m=mat4Mul(mat4Trans(e.x,barY,e.z),mat4Mul(mat4RotY(camYaw),mat4Mul(mat4Trans(shiftX,0,-0.12),mat4Scale(fillW,barH,0.05))));
+      drawBox(mat4Mul(vp,m),m,hpColor,0);
+    }
   }
 
   // Bullets

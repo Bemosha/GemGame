@@ -46,14 +46,15 @@
     .bs{font-size:15px;color:#888;margin-bottom:20px}
     #minimap{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:100px;height:100px;
       background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);border-radius:8px;pointer-events:none}
-    #tankChoiceScreen{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;
-      justify-content:center;align-items:center;z-index:25;color:#fff;text-align:center;
-      background:rgba(0,0,0,0.8);padding:20px}
+    #tankChoiceScreen{position:fixed;top:0;left:0;width:100%;display:flex;flex-direction:column;
+      align-items:center;z-index:25;color:#fff;text-align:center;
+      background:rgba(0,0,0,0.85);padding:10px 10px 14px;border-bottom:2px solid rgba(255,255,255,0.2);
+      box-shadow:0 4px 20px rgba(0,0,0,0.6)}
     .tankCard{background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.3);border-radius:12px;
-      padding:8px;cursor:pointer;width:105px;text-align:center;transition:transform 0.15s}
-    .tankCard:active{transform:scale(0.93);background:rgba(255,255,255,0.25)}
-    .tcName{color:#fff;font-weight:bold;font-size:13px;margin-top:4px}
-    .tcDesc{color:#aaa;font-size:11px;margin-top:2px}
+      padding:6px;cursor:pointer;width:100px;text-align:center;transition:transform 0.15s;pointer-events:auto}
+    .tankCard:active{transform:scale(0.93);background:rgba(255,255,255,0.25);border-color:#fff}
+    .tcName{color:#fff;font-weight:bold;font-size:12px;margin-top:3px}
+    .tcDesc{color:#aaa;font-size:10px;margin-top:1px}
   </style>
 </head>
 <body>
@@ -77,8 +78,8 @@
   <button class="btn" id="startBtn">В бой!</button>
 </div>
 <div id="tankChoiceScreen" style="display:none">
-  <h1 style="font-size:22px;margin-bottom:16px">Выбери танк!</h1>
-  <div id="tankCards" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:360px">
+  <div style="font-size:16px;font-weight:bold;margin-bottom:8px">Выбери танк!</div>
+  <div id="tankCards" style="display:flex;gap:8px;justify-content:center">
     <div class="tankCard" onclick="chooseTank('double')">
       <canvas id="tcDouble" width="100" height="80"></canvas>
       <div class="tcName">Двустволка</div>
@@ -720,10 +721,10 @@ canvas.addEventListener('mouseup',()=>{mouseCam=false;});
 
 // ===== Tank Classes =====
 const TANK_CLASSES={
-  normal:{name:'Стандарт',fireRate:10,bulletSpeed:2.5,bulletLife:90,ammo:30,reload:180,barrels:1},
-  double:{name:'Двустволка',fireRate:8,bulletSpeed:2.2,bulletLife:80,ammo:40,reload:200,barrels:2},
-  sniper:{name:'Снайпер',fireRate:30,bulletSpeed:4.0,bulletLife:200,ammo:15,reload:150,barrels:1},
-  machinegun:{name:'Пулемёт',fireRate:4,bulletSpeed:3.0,bulletLife:60,ammo:60,reload:240,barrels:1}
+  normal:{name:'Стандарт',fireRate:10,bulletSpeed:1.4,bulletLife:100,ammo:30,reload:180,barrels:1},
+  double:{name:'Двустволка',fireRate:8,bulletSpeed:1.3,bulletLife:90,ammo:40,reload:200,barrels:2},
+  sniper:{name:'Снайпер',fireRate:30,bulletSpeed:2.2,bulletLife:200,ammo:15,reload:150,barrels:1},
+  machinegun:{name:'Пулемёт',fireRate:4,bulletSpeed:1.6,bulletLife:70,ammo:60,reload:240,barrels:1}
 };
 let playerClass='normal';
 let lastChoiceKills=0;
@@ -887,9 +888,9 @@ function update(){
       const bx=tank.x+dirX*4.5;
       const bz=tank.z+dirZ*4.5;
       bullets.push({x:bx,y:1.5,z:bz,
-        vx:dirX*2.0,
-        vz:dirZ*2.0,
-        life:90,owner:ownerTag});
+        vx:dirX*1.2,
+        vz:dirZ*1.2,
+        life:100,owner:ownerTag});
       const distToPlayer=Math.sqrt((tank.x-player.x)**2+(tank.z-player.z)**2);
       if(distToPlayer<50)playRandomShootSound();
     }
@@ -1069,7 +1070,6 @@ function drawTankIcon(canvasId,type){
 }
 
 function showTankChoice(){
-  gameRunning=false;
   document.getElementById('tankChoiceScreen').style.display='flex';
   drawTankIcon('tcDouble','double');
   drawTankIcon('tcSniper','sniper');
@@ -1086,11 +1086,10 @@ function chooseTank(type){
   const ammoEl=document.getElementById('ammoDisplay');
   if(ammoEl){ammoEl.textContent=ammo+' / '+MAX_AMMO;ammoEl.className='';}
   document.getElementById('tankChoiceScreen').style.display='none';
-  gameRunning=true;
 }
 
 function checkTankChoice(){
-  if(kills>0&&kills%5===0&&kills!==lastChoiceKills){
+  if(kills>0&&kills%3===0&&kills!==lastChoiceKills){
     lastChoiceKills=kills;
     showTankChoice();
   }

@@ -46,15 +46,14 @@
     .bs{font-size:15px;color:#888;margin-bottom:20px}
     #minimap{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:100px;height:100px;
       background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);border-radius:8px;pointer-events:none}
-    #tankChoiceScreen{position:fixed;top:8px;left:50%;transform:translateX(-50%);
-      display:flex;flex-direction:column;align-items:center;z-index:25;color:#fff;text-align:center;
-      background:rgba(0,0,0,0.88);padding:8px 12px 10px;border-radius:14px;
-      border:1px solid rgba(255,255,255,0.25);max-width:330px}
-    .tankCard{background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.25);border-radius:10px;
-      padding:4px;cursor:pointer;width:90px;text-align:center;transition:transform 0.15s;pointer-events:auto}
-    .tankCard:active{transform:scale(0.93);background:rgba(255,255,255,0.25);border-color:#4f4}
-    .tcName{color:#fff;font-weight:bold;font-size:11px;margin-top:2px}
-    .tcDesc{color:#aaa;font-size:9px;margin-top:1px}
+    #tankChoiceScreen{position:fixed;top:0;left:0;width:100%;height:50vh;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:25;color:#fff;text-align:center;
+      background:rgba(0,0,0,0.9);border-bottom:3px solid rgba(255,255,255,0.3)}
+    .tankCard{background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.3);border-radius:12px;
+      padding:6px 8px 8px;cursor:pointer;text-align:center;transition:transform 0.15s;pointer-events:auto;flex:1;max-width:30%}
+    .tankCard:active{transform:scale(0.93);background:rgba(100,255,100,0.15);border-color:#4f4}
+    .tcName{color:#fff;font-weight:bold;font-size:13px;margin-top:4px}
+    .tcDesc{color:#aaa;font-size:10px;margin-top:2px}
   </style>
 </head>
 <body>
@@ -78,20 +77,20 @@
   <button class="btn" id="startBtn">В бой!</button>
 </div>
 <div id="tankChoiceScreen" style="display:none">
-  <div style="font-size:16px;font-weight:bold;margin-bottom:8px">Выбери танк!</div>
-  <div id="tankCards" style="display:flex;gap:8px;justify-content:center">
+  <div style="font-size:18px;font-weight:bold;margin-bottom:10px">Выбери танк!</div>
+  <div id="tankCards" style="display:flex;gap:10px;justify-content:center;width:95%;padding:0 8px">
     <div class="tankCard" onclick="chooseTank('double')">
-      <canvas id="tcDouble" width="80" height="60"></canvas>
+      <canvas id="tcDouble" width="140" height="100" style="width:100%;height:auto"></canvas>
       <div class="tcName">Двустволка</div>
       <div class="tcDesc">2 ствола</div>
     </div>
     <div class="tankCard" onclick="chooseTank('sniper')">
-      <canvas id="tcSniper" width="80" height="60"></canvas>
+      <canvas id="tcSniper" width="140" height="100" style="width:100%;height:auto"></canvas>
       <div class="tcName">Снайпер</div>
       <div class="tcDesc">Далёкий</div>
     </div>
     <div class="tankCard" onclick="chooseTank('machinegun')">
-      <canvas id="tcMachinegun" width="80" height="60"></canvas>
+      <canvas id="tcMachinegun" width="140" height="100" style="width:100%;height:auto"></canvas>
       <div class="tcName">Пулемёт</div>
       <div class="tcDesc">Быстрый</div>
     </div>
@@ -1021,75 +1020,105 @@ function drawTankIcon(canvasId,type){
   const c=document.getElementById(canvasId);
   if(!c)return;
   const x=c.getContext('2d');
-  const w=80,h=60;
-  x.clearRect(0,0,w,h);
+  const W=140,H=100;
+  x.clearRect(0,0,W,H);
 
-  // Ground line
+  // Ground
   x.fillStyle='#3a4a20';
-  x.fillRect(0,52,w,8);
+  x.fillRect(0,85,W,15);
 
   // Tracks
-  x.fillStyle='#222';
-  x.fillRect(14,44,52,9);
-  // Track wheels
-  x.fillStyle='#444';
-  for(let i=0;i<4;i++) {x.beginPath();x.arc(22+i*13,48,4,0,Math.PI*2);x.fill();}
+  x.fillStyle='#1a1a1a';
+  x.fillRect(22,72,96,14);
+  // Wheels
+  x.fillStyle='#555';
+  x.strokeStyle='#333';x.lineWidth=2;
+  for(let i=0;i<5;i++){x.beginPath();x.arc(32+i*20,79,6,0,Math.PI*2);x.fill();x.stroke();}
 
-  // Hull
+  // Hull body
   x.fillStyle='#5a6b3a';
-  x.fillRect(16,34,48,13);
+  x.fillRect(26,54,88,22);
   // Front slope
   x.fillStyle='#4a5a2e';
-  x.beginPath();x.moveTo(16,34);x.lineTo(10,42);x.lineTo(16,47);x.fill();
+  x.beginPath();x.moveTo(26,54);x.lineTo(16,66);x.lineTo(26,76);x.fill();
+  // Engine deck
+  x.fillStyle='#4e5e30';
+  x.fillRect(90,56,22,14);
+
+  // Side skirts
+  x.fillStyle='#506832';
+  x.fillRect(22,68,98,5);
 
   // Turret
   x.fillStyle='#4e5e32';
-  x.roundRect(30,22,28,14,3);x.fill();
+  x.beginPath();
+  x.moveTo(50,36);x.lineTo(102,36);x.lineTo(108,42);x.lineTo(108,52);x.lineTo(46,52);x.lineTo(46,42);
+  x.closePath();x.fill();
+  x.strokeStyle='#3a4a24';x.lineWidth=2;x.stroke();
 
   if(type==='double'){
-    // Two fat barrels
+    // Two big barrels
     x.fillStyle='#333';
-    x.fillRect(6,25,26,5);
-    x.fillRect(6,32,26,5);
+    x.fillRect(8,38,42,6);
+    x.fillRect(8,49,42,6);
     // Muzzle brakes
-    x.fillStyle='#555';
-    x.fillRect(2,24,6,7);
-    x.fillRect(2,31,6,7);
-    // Fire flashes
-    x.fillStyle='#fa3';
-    x.beginPath();x.arc(3,28,3,0,Math.PI*2);x.fill();
-    x.beginPath();x.arc(3,35,3,0,Math.PI*2);x.fill();
+    x.fillStyle='#666';
+    x.fillRect(2,36,8,10);
+    x.fillRect(2,47,8,10);
+    // Fire flash
+    x.fillStyle='#ff6622';
+    x.beginPath();x.arc(4,42,6,0,Math.PI*2);x.fill();
+    x.fillStyle='#ffaa33';
+    x.beginPath();x.arc(4,42,3,0,Math.PI*2);x.fill();
+    x.fillStyle='#ff6622';
+    x.beginPath();x.arc(4,53,6,0,Math.PI*2);x.fill();
+    x.fillStyle='#ffaa33';
+    x.beginPath();x.arc(4,53,3,0,Math.PI*2);x.fill();
   }else if(type==='sniper'){
-    // One very long barrel
+    // Long barrel
     x.fillStyle='#333';
-    x.fillRect(2,28,30,4);
-    // Big muzzle brake
-    x.fillStyle='#555';
-    x.fillRect(0,26,4,8);
-    // Scope on top
-    x.fillStyle='#66a';
-    x.fillRect(36,18,8,5);
-    x.fillStyle='#88c';
-    x.beginPath();x.arc(36,20,2,0,Math.PI*2);x.fill();
+    x.fillRect(2,44,50,5);
+    // Thick base
+    x.fillStyle='#444';
+    x.fillRect(44,42,10,9);
+    // Muzzle brake
+    x.fillStyle='#666';
+    x.fillRect(0,42,5,9);
+    // Scope
+    x.fillStyle='#5566aa';
+    x.fillRect(56,28,14,8);
+    x.fillStyle='#7799dd';
+    x.beginPath();x.arc(56,32,4,0,Math.PI*2);x.fill();
+    // Crosshair hint
+    x.strokeStyle='#aaccff';x.lineWidth=1;
+    x.beginPath();x.moveTo(53,32);x.lineTo(59,32);x.stroke();
+    x.beginPath();x.moveTo(56,29);x.lineTo(56,35);x.stroke();
   }else{
-    // Machine gun - short barrel with ammo belt
+    // Triple machine gun barrels
     x.fillStyle='#333';
-    x.fillRect(10,27,22,3);
-    x.fillRect(10,30,22,3);
-    x.fillRect(10,33,22,3);
+    x.fillRect(14,40,38,4);
+    x.fillRect(14,45,38,4);
+    x.fillRect(14,50,38,4);
+    // Muzzle flash dots
+    x.fillStyle='#ffaa22';
+    x.beginPath();x.arc(12,42,3,0,Math.PI*2);x.fill();
+    x.beginPath();x.arc(10,47,3,0,Math.PI*2);x.fill();
+    x.beginPath();x.arc(8,52,3,0,Math.PI*2);x.fill();
     // Ammo box
-    x.fillStyle='#665533';
-    x.fillRect(54,24,10,10);
-    x.strokeStyle='#444';x.lineWidth=1;
-    x.strokeRect(54,24,10,10);
-    // Bullet stream
-    x.fillStyle='#fa3';
-    for(let i=0;i<3;i++){x.fillRect(3+i*3,29+i*3,2,2);}
+    x.fillStyle='#775533';
+    x.fillRect(96,34,16,16);
+    x.strokeStyle='#554422';x.lineWidth=2;
+    x.strokeRect(96,34,16,16);
+    // Ammo belt
+    x.strokeStyle='#998866';x.lineWidth=3;
+    x.beginPath();x.moveTo(96,44);x.quadraticCurveTo(88,48,84,44);x.stroke();
   }
 
   // Cupola
   x.fillStyle='#3a4a28';
-  x.fillRect(48,18,8,5);
+  x.fillRect(88,30,14,8);
+  x.fillStyle='#445530';
+  x.fillRect(90,26,10,5);
 }
 
 function showTankChoice(){

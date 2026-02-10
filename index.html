@@ -9,6 +9,9 @@
     body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font-family:Arial,sans-serif}
     canvas{display:block;width:100vw;height:100vh}
     #hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+    #fsBtn{position:absolute;top:12px;right:180px;background:rgba(0,0,0,0.5);color:#fff;padding:4px 10px;
+      border-radius:8px;font-size:18px;pointer-events:auto;cursor:pointer;z-index:30;border:1px solid rgba(255,255,255,0.3)}
+    #fsBtn:active{background:rgba(255,255,255,0.2)}
     #score{position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:16px;pointer-events:none}
     #score span{color:#ff4444;font-weight:bold;font-size:22px}
     #hp{position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:14px;pointer-events:none}
@@ -48,6 +51,7 @@
 <body>
 <canvas id="c"></canvas>
 <div id="hud">
+  <div id="fsBtn" onclick="toggleFS()">⛶</div>
   <div id="score">Уничтожено: <span id="kills">0</span></div>
   <div id="hp">HP<div id="hpBar"><div id="hpFill"></div></div></div>
   <div id="ammoDisplay">30 / 30</div>
@@ -84,6 +88,27 @@ function resize(){
   gl.viewport(0,0,canvas.width,canvas.height);
 }
 window.addEventListener('resize',resize); resize();
+
+// ===== Fullscreen toggle =====
+function toggleFS(){
+  const btn=document.getElementById('fsBtn');
+  if(!document.fullscreenElement&&!document.webkitFullscreenElement){
+    const el=document.documentElement;
+    if(el.requestFullscreen)el.requestFullscreen();
+    else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
+    btn.textContent='✕';
+  }else{
+    if(document.exitFullscreen)document.exitFullscreen();
+    else if(document.webkitExitFullscreen)document.webkitExitFullscreen();
+    btn.textContent='⛶';
+  }
+}
+document.addEventListener('fullscreenchange',()=>{
+  document.getElementById('fsBtn').textContent=document.fullscreenElement?'✕':'⛶';
+});
+document.addEventListener('webkitfullscreenchange',()=>{
+  document.getElementById('fsBtn').textContent=document.webkitFullscreenElement?'✕':'⛶';
+});
 
 // ===== Funny Sounds (Web Audio API) =====
 let audioCtx=null;
@@ -365,7 +390,7 @@ uniform float uFog;
 void main(){
   vec3 n=normalize(vNorm);
   float diff=max(dot(n,uLightDir),0.0);
-  vec3 col=uColor*(0.35+0.65*diff);
+  vec3 col=uColor*(0.55+0.45*diff);
   // fog
   float d=length(vWorldPos);
   float fog=clamp((d-80.0)/120.0,0.0,1.0)*uFog;

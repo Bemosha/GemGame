@@ -467,7 +467,9 @@ function mat4Mul(a,b){
 }
 function mat4Trans(x,y,z){const o=mat4();o[12]=x;o[13]=y;o[14]=z;return o;}
 function mat4Scale(x,y,z){const o=mat4();o[0]=x;o[5]=y;o[10]=z;return o;}
+function mat4RotX(a){const o=mat4(),c=Math.cos(a),s=Math.sin(a);o[5]=c;o[6]=s;o[9]=-s;o[10]=c;return o;}
 function mat4RotY(a){const o=mat4(),c=Math.cos(a),s=Math.sin(a);o[0]=c;o[2]=-s;o[8]=s;o[10]=c;return o;}
+function mat4RotZ(a){const o=mat4(),c=Math.cos(a),s=Math.sin(a);o[0]=c;o[1]=s;o[4]=-s;o[5]=c;return o;}
 
 // ===== Game State =====
 let gameRunning=false, kills=0, bestKills=parseInt(localStorage.getItem('tank3dBest')||'0');
@@ -494,7 +496,7 @@ function spawnObstacles(){
       w:2+Math.random()*3,
       h:1+Math.random()*4,
       d:2+Math.random()*3,
-      color:[0.4+Math.random()*0.2,0.35+Math.random()*0.15,0.25+Math.random()*0.1]
+      color:[0.35+Math.random()*0.15,0.32+Math.random()*0.1,0.28+Math.random()*0.08]
     });
   }
 }
@@ -516,8 +518,8 @@ function spawnEnemy(){
     speed:espeed,
     moveTimer:0,
     shootTimer:eshoot,
-    color:[0.15+Math.random()*0.2, 0.5+Math.random()*0.3, 0.15+Math.random()*0.2],
-    turretColor:[0.1+Math.random()*0.15, 0.4+Math.random()*0.2, 0.1+Math.random()*0.15]
+    color:(()=>{const c=[[0.35,0.38,0.22],[0.42,0.36,0.2],[0.3,0.32,0.25],[0.36,0.3,0.18],[0.4,0.38,0.28]];return c[Math.floor(Math.random()*c.length)]})(),
+    turretColor:(()=>{const c=[[0.32,0.35,0.2],[0.38,0.33,0.18],[0.28,0.3,0.22],[0.33,0.27,0.16],[0.37,0.35,0.25]];return c[Math.floor(Math.random()*c.length)]})()
   });
 }
 
@@ -744,8 +746,8 @@ function update(){
     ammo--;
     const dirX=-Math.sin(player.turretAngle);
     const dirZ=-Math.cos(player.turretAngle);
-    const bx=player.x+dirX*3;
-    const bz=player.z+dirZ*3;
+    const bx=player.x+dirX*4.5;
+    const bz=player.z+dirZ*4.5;
     bullets.push({x:bx,y:1.5,z:bz,
       vx:dirX*30*dt,
       vz:dirZ*30*dt,
@@ -785,8 +787,8 @@ function update(){
       e.shootTimer=80+Math.random()*100;
       const dirX=-Math.sin(e.turretAngle);
       const dirZ=-Math.cos(e.turretAngle);
-      const bx=e.x+dirX*3;
-      const bz=e.z+dirZ*3;
+      const bx=e.x+dirX*4.5;
+      const bz=e.z+dirZ*4.5;
       bullets.push({x:bx,y:1.5,z:bz,
         vx:dirX*20*dt,
         vz:dirZ*20*dt,
@@ -906,19 +908,19 @@ function render(){
 
   // Ground
   let m=mat4Mul(mat4Trans(0,-0.1,0),mat4Scale(WORLD*2,0.2,WORLD*2));
-  drawBox(mat4Mul(vp,m),m,[0.35,0.55,0.25],1);
+  drawBox(mat4Mul(vp,m),m,[0.3,0.38,0.18],1);
 
   // Grid lines on ground
   for(let i=-WORLD;i<=WORLD;i+=20){
     m=mat4Mul(mat4Trans(i,0.01,0),mat4Scale(0.1,0.01,WORLD*2));
-    drawBox(mat4Mul(vp,m),m,[0.3,0.5,0.2],1);
+    drawBox(mat4Mul(vp,m),m,[0.28,0.35,0.16],1);
     m=mat4Mul(mat4Trans(0,0.01,i),mat4Scale(WORLD*2,0.01,0.1));
-    drawBox(mat4Mul(vp,m),m,[0.3,0.5,0.2],1);
+    drawBox(mat4Mul(vp,m),m,[0.28,0.35,0.16],1);
   }
 
   // Boundary walls (4 walls around game zone)
-  const wallH=4,wallT=2;
-  const wc=[0.55,0.25,0.2];
+  const wallH=5,wallT=2;
+  const wc=[0.4,0.38,0.35];
   m=mat4Mul(mat4Trans(0,wallH/2,-WORLD-wallT/2),mat4Scale(WORLD*2+wallT*2,wallH,wallT));
   drawBox(mat4Mul(vp,m),m,wc,1);
   m=mat4Mul(mat4Trans(0,wallH/2,WORLD+wallT/2),mat4Scale(WORLD*2+wallT*2,wallH,wallT));
@@ -934,38 +936,111 @@ function render(){
     drawBox(mat4Mul(vp,m),m,o.color,1);
   }
 
-  // Draw tank helper
+  // Draw realistic tank (War Thunder style)
   function drawTank(tx,tz,bodyAngle,turretAngle,bodyColor,turretColor,trackColor){
-    // Body (lower cube)
-    let bm=mat4Mul(mat4Trans(tx,0.6,tz),mat4Mul(mat4RotY(bodyAngle),mat4Scale(2.4,0.8,3)));
-    drawBox(mat4Mul(vp,bm),bm,bodyColor,1);
+    // Helper: place box relative to tank origin with body rotation
+    function bPart(ox,oy,oz,sx,sy,sz,col,rot){
+      let m=mat4Mul(mat4Trans(tx,oy,tz),mat4Mul(mat4RotY(bodyAngle),rot?mat4Mul(mat4Trans(ox,0,oz),mat4Mul(rot,mat4Scale(sx,sy,sz))):mat4Mul(mat4Trans(ox,0,oz),mat4Scale(sx,sy,sz))));
+      drawBox(mat4Mul(vp,m),m,col,1);
+    }
+    // Helper: place box relative to tank with turret rotation
+    function tPart(ox,oy,oz,sx,sy,sz,col,rot){
+      let m=mat4Mul(mat4Trans(tx,oy,tz),mat4Mul(mat4RotY(turretAngle),rot?mat4Mul(mat4Trans(ox,0,oz),mat4Mul(rot,mat4Scale(sx,sy,sz))):mat4Mul(mat4Trans(ox,0,oz),mat4Scale(sx,sy,sz))));
+      drawBox(mat4Mul(vp,m),m,col,1);
+    }
 
-    // Tracks
-    let tl=mat4Mul(mat4Trans(tx,0.35,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.3,0,0),mat4Scale(0.4,0.5,3.2))));
-    drawBox(mat4Mul(vp,tl),tl,trackColor,1);
-    let tr=mat4Mul(mat4Trans(tx,0.35,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.3,0,0),mat4Scale(0.4,0.5,3.2))));
-    drawBox(mat4Mul(vp,tr),tr,trackColor,1);
+    const dc=[bodyColor[0]*0.7,bodyColor[1]*0.7,bodyColor[2]*0.7]; // darker shade
+    const lc=[bodyColor[0]*1.15,bodyColor[1]*1.15,bodyColor[2]*1.15]; // lighter
+    const mc=[trackColor[0]*0.6,trackColor[1]*0.6,trackColor[2]*0.6]; // metal dark
 
-    // Turret (upper cube)
-    let tm=mat4Mul(mat4Trans(tx,1.35,tz),mat4Mul(mat4RotY(turretAngle),mat4Scale(1.6,0.7,1.6)));
-    drawBox(mat4Mul(vp,tm),tm,turretColor,1);
+    // === HULL ===
+    // Main hull body
+    bPart(0,0.55,0, 2.6,0.7,3.6, bodyColor);
+    // Upper hull (slightly narrower)
+    bPart(0,0.95,0, 2.4,0.15,3.4, lc);
+    // Front hull slope (angled armor)
+    bPart(0,0.75,-2.0, 2.4,0.5,0.6, dc, mat4RotX(-0.4));
+    // Rear engine deck (lower, slightly raised)
+    bPart(0,0.85,1.5, 2.2,0.2,1.0, dc);
+    // Engine grille
+    bPart(0,0.96,1.6, 1.4,0.05,0.6, mc);
+    // Exhaust pipes (left+right on rear)
+    bPart(-0.8,0.7,2.1, 0.2,0.2,0.5, mc);
+    bPart(0.8,0.7,2.1, 0.2,0.2,0.5, mc);
 
-    // Barrel
-    let barrel=mat4Mul(mat4Trans(tx,1.4,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-1.8),mat4Scale(0.3,0.3,2))));
-    drawBox(mat4Mul(vp,barrel),barrel,trackColor,1);
+    // === TRACKS & SUSPENSION ===
+    // Track guards / fenders
+    bPart(-1.45,0.8,0, 0.3,0.08,3.6, dc);
+    bPart(1.45,0.8,0, 0.3,0.08,3.6, dc);
+    // Tracks (left)
+    bPart(-1.45,0.35,0, 0.45,0.55,3.5, trackColor);
+    // Tracks (right)
+    bPart(1.45,0.35,0, 0.45,0.55,3.5, trackColor);
+    // Track wheels (left side — 5 road wheels)
+    for(let i=0;i<5;i++){
+      const wz=-1.4+i*0.7;
+      bPart(-1.45,0.3,wz, 0.5,0.4,0.35, mc);
+    }
+    // Track wheels (right side)
+    for(let i=0;i<5;i++){
+      const wz=-1.4+i*0.7;
+      bPart(1.45,0.3,wz, 0.5,0.4,0.35, mc);
+    }
+    // Drive sprocket (front)
+    bPart(-1.45,0.45,-1.8, 0.5,0.5,0.3, mc);
+    bPart(1.45,0.45,-1.8, 0.5,0.5,0.3, mc);
+    // Idler wheel (rear)
+    bPart(-1.45,0.45,1.7, 0.5,0.45,0.3, mc);
+    bPart(1.45,0.45,1.7, 0.5,0.45,0.3, mc);
+    // Side skirts (armor plates on tracks)
+    bPart(-1.7,0.55,0, 0.06,0.4,2.8, bodyColor);
+    bPart(1.7,0.55,0, 0.06,0.4,2.8, bodyColor);
+
+    // === TURRET ===
+    // Main turret body (wider front, tapered)
+    tPart(0,1.35,0, 1.8,0.65,1.8, turretColor);
+    // Turret front (thicker armor)
+    tPart(0,1.35,-0.7, 1.7,0.55,0.5, turretColor);
+    // Turret rear bustle (ammo storage)
+    tPart(0,1.35,0.8, 1.4,0.5,0.6, [turretColor[0]*0.85,turretColor[1]*0.85,turretColor[2]*0.85]);
+    // Turret top hatch
+    tPart(-0.35,1.72,0.1, 0.4,0.06,0.4, mc);
+    // Commander cupola
+    tPart(-0.35,1.8,0.1, 0.3,0.12,0.3, mc);
+    // Turret ring base
+    tPart(0,1.0,0, 1.5,0.08,1.5, mc);
+
+    // === GUN ===
+    // Mantlet (gun shield)
+    tPart(0,1.35,-1.05, 1.0,0.5,0.3, mc);
+    // Main barrel
+    tPart(0,1.38,-2.5, 0.2,0.2,2.6, mc);
+    // Barrel tip (muzzle brake)
+    tPart(0,1.38,-3.9, 0.3,0.3,0.25, [0.2,0.2,0.2]);
+    // Barrel base (thicker near mantlet)
+    tPart(0,1.38,-1.4, 0.28,0.28,0.5, mc);
+
+    // === DETAILS ===
+    // Front headlight (left)
+    bPart(-1.1,0.75,-1.9, 0.2,0.2,0.1, [0.8,0.8,0.5]);
+    // Front headlight (right)
+    bPart(1.1,0.75,-1.9, 0.2,0.2,0.1, [0.8,0.8,0.5]);
+    // Tow hooks front
+    bPart(-0.9,0.35,-1.85, 0.15,0.1,0.15, mc);
+    bPart(0.9,0.35,-1.85, 0.15,0.1,0.15, mc);
   }
 
   // Player tank
   if(gameRunning||explosions.some(e=>e.t<0.5)){
     if(player.hp>0){
       drawTank(player.x,player.z,player.angle,player.turretAngle,
-        [0.2,0.4,0.7],[0.15,0.3,0.6],[0.15,0.15,0.2]);
+        [0.28,0.33,0.2],[0.25,0.3,0.18],[0.12,0.12,0.1]);
     }
   }
 
   // Enemy tanks + HP bars
   for(const e of enemies){
-    drawTank(e.x,e.z,e.angle,e.turretAngle,e.color,e.turretColor,[0.15,0.2,0.1]);
+    drawTank(e.x,e.z,e.angle,e.turretAngle,e.color,e.turretColor,[0.12,0.12,0.1]);
 
   }
 

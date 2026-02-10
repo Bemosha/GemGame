@@ -98,226 +98,184 @@ function getAudio(){
   return audioCtx;
 }
 
-// Heavy cannon boom — deep bass hit + noise burst
-function playCannon1(){
+// Realistic cannon shot
+function playCannonShot(){
   try{
   const ctx=getAudio();
   const t=ctx.currentTime;
-  // Bass impact
-  const o=ctx.createOscillator();
-  const g=ctx.createGain();
-  o.connect(g);g.connect(ctx.destination);
-  o.type='square';
-  o.frequency.setValueAtTime(120,t);
-  o.frequency.exponentialRampToValueAtTime(30,t+0.2);
-  g.gain.setValueAtTime(0.7,t);
-  g.gain.linearRampToValueAtTime(0,t+0.25);
-  o.start(t);o.stop(t+0.26);
-  // Noise crack
-  const buf=ctx.createBuffer(1,Math.floor(ctx.sampleRate*0.15),ctx.sampleRate);
-  const d=buf.getChannelData(0);
-  for(let i=0;i<d.length;i++){
-    const p=i/d.length;
-    d[i]=(Math.random()*2-1)*Math.exp(-p*8)*(Math.sin(i*0.05)>0?1:-1)*0.5;
+  const sr=ctx.sampleRate;
+
+  // Layer 1: Explosive noise burst (the initial BANG)
+  const bangLen=Math.floor(sr*0.4);
+  const bangBuf=ctx.createBuffer(1,bangLen,sr);
+  const bangD=bangBuf.getChannelData(0);
+  for(let i=0;i<bangLen;i++){
+    const p=i/sr;
+    bangD[i]=(Math.random()*2-1)*Math.exp(-p*12);
   }
-  const s=ctx.createBufferSource();
-  const g2=ctx.createGain();
-  s.buffer=buf;s.connect(g2);g2.connect(ctx.destination);
-  g2.gain.setValueAtTime(0.6,t);
-  s.start(t);
-  }catch(e){}
-}
+  const bangSrc=ctx.createBufferSource();
+  bangSrc.buffer=bangBuf;
+  const bangHP=ctx.createBiquadFilter();
+  bangHP.type='highpass';bangHP.frequency.value=800;
+  const bangGain=ctx.createGain();
+  bangGain.gain.setValueAtTime(0.8,t);
+  bangGain.gain.linearRampToValueAtTime(0,t+0.15);
+  bangSrc.connect(bangHP);bangHP.connect(bangGain);bangGain.connect(ctx.destination);
+  bangSrc.start(t);
 
-// Tank blast — sharp crack + low rumble
-function playCannon2(){
-  try{
-  const ctx=getAudio();
-  const t=ctx.currentTime;
-  // Sharp crack
-  const o1=ctx.createOscillator();
-  const g1=ctx.createGain();
-  o1.connect(g1);g1.connect(ctx.destination);
-  o1.type='square';
-  o1.frequency.setValueAtTime(500,t);
-  o1.frequency.exponentialRampToValueAtTime(60,t+0.08);
-  g1.gain.setValueAtTime(0.7,t);
-  g1.gain.linearRampToValueAtTime(0,t+0.1);
-  o1.start(t);o1.stop(t+0.11);
-  // Low rumble
-  const o2=ctx.createOscillator();
-  const g2=ctx.createGain();
-  o2.connect(g2);g2.connect(ctx.destination);
-  o2.type='square';
-  o2.frequency.setValueAtTime(55,t);
-  o2.frequency.exponentialRampToValueAtTime(25,t+0.25);
-  g2.gain.setValueAtTime(0.5,t+0.02);
-  g2.gain.linearRampToValueAtTime(0,t+0.28);
-  o2.start(t);o2.stop(t+0.29);
-  }catch(e){}
-}
+  // Layer 2: Deep bass boom (the punch you feel)
+  const boomOsc=ctx.createOscillator();
+  boomOsc.type='sine';
+  boomOsc.frequency.setValueAtTime(80,t);
+  boomOsc.frequency.exponentialRampToValueAtTime(20,t+0.3);
+  const boomGain=ctx.createGain();
+  boomGain.gain.setValueAtTime(0.9,t);
+  boomGain.gain.linearRampToValueAtTime(0,t+0.35);
+  boomOsc.connect(boomGain);boomGain.connect(ctx.destination);
+  boomOsc.start(t);boomOsc.stop(t+0.36);
 
-// Artillery fire — punchy mid hit + fading tail
-function playCannon3(){
-  try{
-  const ctx=getAudio();
-  const t=ctx.currentTime;
-  const buf=ctx.createBuffer(1,Math.floor(ctx.sampleRate*0.25),ctx.sampleRate);
-  const d=buf.getChannelData(0);
-  let phase=0;
-  for(let i=0;i<d.length;i++){
-    const p=i/ctx.sampleRate;
-    const freq=180-p*500;
-    phase+=Math.max(freq,20)/ctx.sampleRate;
-    const sq=(Math.sin(phase*Math.PI*2)>0?1:-1);
-    const noise=Math.random()*2-1;
-    d[i]=(sq*0.5+noise*0.4)*Math.exp(-p*7);
+  // Layer 3: Mid-range crack (the sharp snap)
+  const crackLen=Math.floor(sr*0.08);
+  const crackBuf=ctx.createBuffer(1,crackLen,sr);
+  const crackD=crackBuf.getChannelData(0);
+  for(let i=0;i<crackLen;i++){
+    const p=i/sr;
+    crackD[i]=(Math.random()*2-1)*Math.exp(-p*40);
   }
-  const s=ctx.createBufferSource();
-  const g=ctx.createGain();
-  s.buffer=buf;s.connect(g);g.connect(ctx.destination);
-  g.gain.setValueAtTime(0.7,t);
-  s.start(t);
+  const crackSrc=ctx.createBufferSource();
+  crackSrc.buffer=crackBuf;
+  const crackBP=ctx.createBiquadFilter();
+  crackBP.type='bandpass';crackBP.frequency.value=2500;crackBP.Q.value=0.8;
+  const crackGain=ctx.createGain();
+  crackGain.gain.setValueAtTime(0.7,t);
+  crackSrc.connect(crackBP);crackBP.connect(crackGain);crackGain.connect(ctx.destination);
+  crackSrc.start(t);
+
+  // Layer 4: Tail rumble (echo/reverb feel)
+  const tailLen=Math.floor(sr*0.6);
+  const tailBuf=ctx.createBuffer(1,tailLen,sr);
+  const tailD=tailBuf.getChannelData(0);
+  for(let i=0;i<tailLen;i++){
+    const p=i/sr;
+    tailD[i]=(Math.random()*2-1)*Math.exp(-p*5)*0.3;
+  }
+  const tailSrc=ctx.createBufferSource();
+  tailSrc.buffer=tailBuf;
+  const tailLP=ctx.createBiquadFilter();
+  tailLP.type='lowpass';tailLP.frequency.setValueAtTime(600,t);tailLP.frequency.exponentialRampToValueAtTime(100,t+0.5);
+  const tailGain=ctx.createGain();
+  tailGain.gain.setValueAtTime(0.5,t+0.05);
+  tailGain.gain.linearRampToValueAtTime(0,t+0.6);
+  tailSrc.connect(tailLP);tailLP.connect(tailGain);tailGain.connect(ctx.destination);
+  tailSrc.start(t+0.02);
+
   }catch(e){}
 }
 
-// Shell fire — double-hit punch
-function playCannon4(){
-  try{
-  const ctx=getAudio();
-  const t=ctx.currentTime;
-  // First punch
-  const o1=ctx.createOscillator();
-  const g1=ctx.createGain();
-  o1.connect(g1);g1.connect(ctx.destination);
-  o1.type='square';
-  o1.frequency.setValueAtTime(300,t);
-  o1.frequency.exponentialRampToValueAtTime(40,t+0.1);
-  g1.gain.setValueAtTime(0.7,t);
-  g1.gain.linearRampToValueAtTime(0,t+0.12);
-  o1.start(t);o1.stop(t+0.13);
-  // Second thud
-  const o2=ctx.createOscillator();
-  const g2=ctx.createGain();
-  o2.connect(g2);g2.connect(ctx.destination);
-  o2.type='square';
-  o2.frequency.setValueAtTime(80,t+0.05);
-  o2.frequency.exponentialRampToValueAtTime(25,t+0.2);
-  g2.gain.setValueAtTime(0,t+0.04);
-  g2.gain.linearRampToValueAtTime(0.55,t+0.05);
-  g2.gain.linearRampToValueAtTime(0,t+0.22);
-  o2.start(t+0.04);o2.stop(t+0.23);
-  }catch(e){}
-}
-
-// 8-bit explosion
+// Realistic explosion
 function playExplosion(){
   try{
   const ctx=getAudio();
-  const bufSize=Math.floor(ctx.sampleRate*0.4);
-  const buf=ctx.createBuffer(1,bufSize,ctx.sampleRate);
-  const data=buf.getChannelData(0);
-  let phase=0;
-  for(let i=0;i<bufSize;i++){
-    const t=i/ctx.sampleRate;
-    const freq=150-t*300;
-    phase+=Math.max(freq,20)/ctx.sampleRate;
-    // square wave + noise for 8-bit feel
-    const sq=(Math.sin(phase*Math.PI*2)>0?1:-1)*0.4;
-    const noise=(Math.random()*2-1)*0.5;
-    data[i]=(sq+noise)*Math.exp(-t*5);
+  const t=ctx.currentTime;
+  const sr=ctx.sampleRate;
+  // Big noise blast
+  const len=Math.floor(sr*0.8);
+  const buf=ctx.createBuffer(1,len,sr);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<len;i++){
+    const p=i/sr;
+    d[i]=(Math.random()*2-1)*Math.exp(-p*4);
   }
   const src=ctx.createBufferSource();
-  const gain=ctx.createGain();
-  src.buffer=buf;src.connect(gain);gain.connect(ctx.destination);
-  gain.gain.setValueAtTime(0.7,ctx.currentTime);
-  src.start();
+  src.buffer=buf;
+  const lp=ctx.createBiquadFilter();
+  lp.type='lowpass';lp.frequency.setValueAtTime(1500,t);lp.frequency.exponentialRampToValueAtTime(80,t+0.7);
+  const g=ctx.createGain();
+  g.gain.setValueAtTime(0.9,t);
+  g.gain.linearRampToValueAtTime(0,t+0.8);
+  src.connect(lp);lp.connect(g);g.connect(ctx.destination);
+  src.start(t);
+  // Deep boom
+  const boom=ctx.createOscillator();
+  boom.type='sine';
+  boom.frequency.setValueAtTime(50,t);
+  boom.frequency.exponentialRampToValueAtTime(15,t+0.5);
+  const bg=ctx.createGain();
+  bg.gain.setValueAtTime(0.8,t);
+  bg.gain.linearRampToValueAtTime(0,t+0.6);
+  boom.connect(bg);bg.connect(ctx.destination);
+  boom.start(t);boom.stop(t+0.61);
   }catch(e){}
 }
 
-// 8-bit shotgun reload — each stage via setTimeout for mobile compatibility
+// Realistic reload sounds — metallic clicks via filtered noise
 function playReloadClick(){
   try{
-  const ctx=getAudio();
-  const t=ctx.currentTime;
-  const o=ctx.createOscillator();
-  const g=ctx.createGain();
-  o.connect(g);g.connect(ctx.destination);
-  o.type='square';
-  o.frequency.setValueAtTime(1400,t);
-  o.frequency.exponentialRampToValueAtTime(300,t+0.08);
-  g.gain.setValueAtTime(0.7,t);
-  g.gain.linearRampToValueAtTime(0,t+0.1);
-  o.start(t);o.stop(t+0.11);
+  const ctx=getAudio();const t=ctx.currentTime;const sr=ctx.sampleRate;
+  const buf=ctx.createBuffer(1,Math.floor(sr*0.12),sr);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++){const p=i/sr;d[i]=(Math.random()*2-1)*Math.exp(-p*50);}
+  const s=ctx.createBufferSource();s.buffer=buf;
+  const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=3000;bp.Q.value=5;
+  const g=ctx.createGain();g.gain.setValueAtTime(0.8,t);
+  s.connect(bp);bp.connect(g);g.connect(ctx.destination);s.start(t);
   }catch(e){}
 }
 function playReloadEject(){
   try{
-  const ctx=getAudio();
-  const t=ctx.currentTime;
-  // First shell ping
-  const o1=ctx.createOscillator();
-  const g1=ctx.createGain();
-  o1.connect(g1);g1.connect(ctx.destination);
-  o1.type='square';
-  o1.frequency.setValueAtTime(2200,t);
-  o1.frequency.exponentialRampToValueAtTime(600,t+0.1);
-  g1.gain.setValueAtTime(0.6,t);
-  g1.gain.linearRampToValueAtTime(0,t+0.12);
-  o1.start(t);o1.stop(t+0.13);
-  // Second shell ping
-  const o2=ctx.createOscillator();
-  const g2=ctx.createGain();
-  o2.connect(g2);g2.connect(ctx.destination);
-  o2.type='square';
-  o2.frequency.setValueAtTime(1900,t+0.12);
-  o2.frequency.exponentialRampToValueAtTime(400,t+0.22);
-  g2.gain.setValueAtTime(0,t+0.11);
-  g2.gain.linearRampToValueAtTime(0.5,t+0.12);
-  g2.gain.linearRampToValueAtTime(0,t+0.24);
-  o2.start(t+0.11);o2.stop(t+0.25);
+  const ctx=getAudio();const t=ctx.currentTime;const sr=ctx.sampleRate;
+  // Shell casing fall — high metallic ring
+  const buf=ctx.createBuffer(1,Math.floor(sr*0.3),sr);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++){
+    const p=i/sr;
+    d[i]=(Math.sin(i/sr*4200*Math.PI*2)*0.3+Math.random()*0.7)*Math.exp(-p*15);
+  }
+  const s=ctx.createBufferSource();s.buffer=buf;
+  const hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=2000;
+  const g=ctx.createGain();g.gain.setValueAtTime(0.6,t);
+  s.connect(hp);hp.connect(g);g.connect(ctx.destination);s.start(t);
   }catch(e){}
 }
 function playReloadInsert(){
   try{
-  const ctx=getAudio();
-  const t=ctx.currentTime;
-  // Thud 1
-  const o1=ctx.createOscillator();
-  const g1=ctx.createGain();
-  o1.connect(g1);g1.connect(ctx.destination);
-  o1.type='square';
-  o1.frequency.setValueAtTime(250,t);
-  o1.frequency.exponentialRampToValueAtTime(80,t+0.08);
-  g1.gain.setValueAtTime(0.7,t);
-  g1.gain.linearRampToValueAtTime(0,t+0.1);
-  o1.start(t);o1.stop(t+0.11);
-  // Thud 2
-  const o2=ctx.createOscillator();
-  const g2=ctx.createGain();
-  o2.connect(g2);g2.connect(ctx.destination);
-  o2.type='square';
-  o2.frequency.setValueAtTime(280,t+0.18);
-  o2.frequency.exponentialRampToValueAtTime(90,t+0.26);
-  g2.gain.setValueAtTime(0,t+0.17);
-  g2.gain.linearRampToValueAtTime(0.7,t+0.18);
-  g2.gain.linearRampToValueAtTime(0,t+0.28);
-  o2.start(t+0.17);o2.stop(t+0.29);
+  const ctx=getAudio();const t=ctx.currentTime;const sr=ctx.sampleRate;
+  // Heavy shell insert — thud + short metallic
+  const buf=ctx.createBuffer(1,Math.floor(sr*0.15),sr);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++){
+    const p=i/sr;
+    d[i]=(Math.random()*2-1)*Math.exp(-p*25)+Math.sin(i/sr*800*Math.PI*2)*0.4*Math.exp(-p*20);
+  }
+  const s=ctx.createBufferSource();s.buffer=buf;
+  const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1200;
+  const g=ctx.createGain();g.gain.setValueAtTime(0.7,t);
+  s.connect(lp);lp.connect(g);g.connect(ctx.destination);s.start(t);
+  // Second shell after 200ms
+  setTimeout(function(){
+    try{
+    const ctx2=getAudio();const t2=ctx2.currentTime;
+    const s2=ctx2.createBufferSource();s2.buffer=buf;
+    const lp2=ctx2.createBiquadFilter();lp2.type='lowpass';lp2.frequency.value=1000;
+    const g2=ctx2.createGain();g2.gain.setValueAtTime(0.6,t2);
+    s2.connect(lp2);lp2.connect(g2);g2.connect(ctx2.destination);s2.start(t2);
+    }catch(e){}
+  },200);
   }catch(e){}
 }
 function playReloadSnap(){
   try{
-  const ctx=getAudio();
-  const t=ctx.currentTime;
-  const o=ctx.createOscillator();
-  const g=ctx.createGain();
-  o.connect(g);g.connect(ctx.destination);
-  o.type='square';
-  o.frequency.setValueAtTime(350,t);
-  o.frequency.exponentialRampToValueAtTime(1800,t+0.03);
-  o.frequency.exponentialRampToValueAtTime(250,t+0.1);
-  g.gain.setValueAtTime(0.7,t);
-  g.gain.linearRampToValueAtTime(0,t+0.12);
-  o.start(t);o.stop(t+0.13);
+  const ctx=getAudio();const t=ctx.currentTime;const sr=ctx.sampleRate;
+  // Heavy snap shut — sharp click + bass thud
+  const buf=ctx.createBuffer(1,Math.floor(sr*0.1),sr);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++){
+    const p=i/sr;
+    d[i]=(Math.random()*2-1)*Math.exp(-p*35)+Math.sin(i/sr*150*Math.PI*2)*0.6*Math.exp(-p*15);
+  }
+  const s=ctx.createBufferSource();s.buffer=buf;
+  const g=ctx.createGain();g.gain.setValueAtTime(0.8,t);
+  s.connect(g);g.connect(ctx.destination);s.start(t);
   }catch(e){}
 }
 function playReload(){
@@ -327,9 +285,8 @@ function playReload(){
   setTimeout(playReloadSnap,2500);
 }
 
-const funnySounds=[playCannon1,playCannon2,playCannon3,playCannon4];
 function playRandomShootSound(){
-  try{funnySounds[Math.floor(Math.random()*funnySounds.length)]();}catch(e){}
+  try{playCannonShot();}catch(e){}
 }
 
 // Vibration

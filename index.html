@@ -46,15 +46,15 @@
     .bs{font-size:15px;color:#888;margin-bottom:20px}
     #minimap{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:100px;height:100px;
       background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);border-radius:8px;pointer-events:none}
-    #tankChoiceScreen{position:fixed;top:0;left:0;width:100%;display:flex;flex-direction:column;
-      align-items:center;z-index:25;color:#fff;text-align:center;
-      background:rgba(0,0,0,0.85);padding:10px 10px 14px;border-bottom:2px solid rgba(255,255,255,0.2);
-      box-shadow:0 4px 20px rgba(0,0,0,0.6)}
-    .tankCard{background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.3);border-radius:12px;
-      padding:6px;cursor:pointer;width:100px;text-align:center;transition:transform 0.15s;pointer-events:auto}
-    .tankCard:active{transform:scale(0.93);background:rgba(255,255,255,0.25);border-color:#fff}
-    .tcName{color:#fff;font-weight:bold;font-size:12px;margin-top:3px}
-    .tcDesc{color:#aaa;font-size:10px;margin-top:1px}
+    #tankChoiceScreen{position:fixed;top:8px;left:50%;transform:translateX(-50%);
+      display:flex;flex-direction:column;align-items:center;z-index:25;color:#fff;text-align:center;
+      background:rgba(0,0,0,0.88);padding:8px 12px 10px;border-radius:14px;
+      border:1px solid rgba(255,255,255,0.25);max-width:330px}
+    .tankCard{background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.25);border-radius:10px;
+      padding:4px;cursor:pointer;width:90px;text-align:center;transition:transform 0.15s;pointer-events:auto}
+    .tankCard:active{transform:scale(0.93);background:rgba(255,255,255,0.25);border-color:#4f4}
+    .tcName{color:#fff;font-weight:bold;font-size:11px;margin-top:2px}
+    .tcDesc{color:#aaa;font-size:9px;margin-top:1px}
   </style>
 </head>
 <body>
@@ -81,19 +81,19 @@
   <div style="font-size:16px;font-weight:bold;margin-bottom:8px">Выбери танк!</div>
   <div id="tankCards" style="display:flex;gap:8px;justify-content:center">
     <div class="tankCard" onclick="chooseTank('double')">
-      <canvas id="tcDouble" width="100" height="80"></canvas>
+      <canvas id="tcDouble" width="80" height="60"></canvas>
       <div class="tcName">Двустволка</div>
-      <div class="tcDesc">2 ствола, быстро</div>
+      <div class="tcDesc">2 ствола</div>
     </div>
     <div class="tankCard" onclick="chooseTank('sniper')">
-      <canvas id="tcSniper" width="100" height="80"></canvas>
+      <canvas id="tcSniper" width="80" height="60"></canvas>
       <div class="tcName">Снайпер</div>
-      <div class="tcDesc">Далеко, мощно</div>
+      <div class="tcDesc">Далёкий</div>
     </div>
     <div class="tankCard" onclick="chooseTank('machinegun')">
-      <canvas id="tcMachinegun" width="100" height="80"></canvas>
+      <canvas id="tcMachinegun" width="80" height="60"></canvas>
       <div class="tcName">Пулемёт</div>
-      <div class="tcDesc">Очень быстро</div>
+      <div class="tcDesc">Быстрый</div>
     </div>
   </div>
 </div>
@@ -721,10 +721,10 @@ canvas.addEventListener('mouseup',()=>{mouseCam=false;});
 
 // ===== Tank Classes =====
 const TANK_CLASSES={
-  normal:{name:'Стандарт',fireRate:10,bulletSpeed:1.4,bulletLife:100,ammo:30,reload:180,barrels:1},
-  double:{name:'Двустволка',fireRate:8,bulletSpeed:1.3,bulletLife:90,ammo:40,reload:200,barrels:2},
-  sniper:{name:'Снайпер',fireRate:30,bulletSpeed:2.2,bulletLife:200,ammo:15,reload:150,barrels:1},
-  machinegun:{name:'Пулемёт',fireRate:4,bulletSpeed:1.6,bulletLife:70,ammo:60,reload:240,barrels:1}
+  normal:{name:'Стандарт',fireRate:10,bulletSpeed:0.7,bulletLife:120,ammo:30,reload:180,barrels:1},
+  double:{name:'Двустволка',fireRate:8,bulletSpeed:0.7,bulletLife:110,ammo:40,reload:200,barrels:2},
+  sniper:{name:'Снайпер',fireRate:30,bulletSpeed:0.7,bulletLife:250,ammo:15,reload:150,barrels:1},
+  machinegun:{name:'Пулемёт',fireRate:4,bulletSpeed:0.7,bulletLife:90,ammo:60,reload:240,barrels:1}
 };
 let playerClass='normal';
 let lastChoiceKills=0;
@@ -888,8 +888,8 @@ function update(){
       const bx=tank.x+dirX*4.5;
       const bz=tank.z+dirZ*4.5;
       bullets.push({x:bx,y:1.5,z:bz,
-        vx:dirX*1.2,
-        vz:dirZ*1.2,
+        vx:dirX*0.7,
+        vz:dirZ*0.7,
         life:100,owner:ownerTag});
       const distToPlayer=Math.sqrt((tank.x-player.x)**2+(tank.z-player.z)**2);
       if(distToPlayer<50)playRandomShootSound();
@@ -1021,52 +1021,75 @@ function drawTankIcon(canvasId,type){
   const c=document.getElementById(canvasId);
   if(!c)return;
   const x=c.getContext('2d');
-  x.clearRect(0,0,100,80);
+  const w=80,h=60;
+  x.clearRect(0,0,w,h);
+
+  // Ground line
+  x.fillStyle='#3a4a20';
+  x.fillRect(0,52,w,8);
+
+  // Tracks
+  x.fillStyle='#222';
+  x.fillRect(14,44,52,9);
+  // Track wheels
+  x.fillStyle='#444';
+  for(let i=0;i<4;i++) {x.beginPath();x.arc(22+i*13,48,4,0,Math.PI*2);x.fill();}
+
   // Hull
   x.fillStyle='#5a6b3a';
-  x.fillRect(20,45,60,18);
+  x.fillRect(16,34,48,13);
   // Front slope
   x.fillStyle='#4a5a2e';
-  x.beginPath();x.moveTo(20,45);x.lineTo(15,55);x.lineTo(20,63);x.fill();
-  // Tracks
-  x.fillStyle='#333';
-  x.fillRect(18,60,64,7);
-  x.fillRect(18,42,64,5);
+  x.beginPath();x.moveTo(16,34);x.lineTo(10,42);x.lineTo(16,47);x.fill();
+
   // Turret
   x.fillStyle='#4e5e32';
-  x.fillRect(35,30,35,18);
+  x.roundRect(30,22,28,14,3);x.fill();
+
   if(type==='double'){
-    // Two barrels
-    x.fillStyle='#2a2a2a';
-    x.fillRect(10,33,28,4);
-    x.fillRect(10,40,28,4);
+    // Two fat barrels
+    x.fillStyle='#333';
+    x.fillRect(6,25,26,5);
+    x.fillRect(6,32,26,5);
     // Muzzle brakes
-    x.fillStyle='#444';
-    x.fillRect(6,32,6,6);
-    x.fillRect(6,39,6,6);
+    x.fillStyle='#555';
+    x.fillRect(2,24,6,7);
+    x.fillRect(2,31,6,7);
+    // Fire flashes
+    x.fillStyle='#fa3';
+    x.beginPath();x.arc(3,28,3,0,Math.PI*2);x.fill();
+    x.beginPath();x.arc(3,35,3,0,Math.PI*2);x.fill();
   }else if(type==='sniper'){
-    // One long thin barrel
-    x.fillStyle='#2a2a2a';
-    x.fillRect(2,37,36,4);
-    // Muzzle brake
-    x.fillStyle='#444';
-    x.fillRect(0,35,5,8);
-    // Scope
-    x.fillStyle='#556';
-    x.fillRect(40,27,4,6);
+    // One very long barrel
+    x.fillStyle='#333';
+    x.fillRect(2,28,30,4);
+    // Big muzzle brake
+    x.fillStyle='#555';
+    x.fillRect(0,26,4,8);
+    // Scope on top
+    x.fillStyle='#66a';
+    x.fillRect(36,18,8,5);
+    x.fillStyle='#88c';
+    x.beginPath();x.arc(36,20,2,0,Math.PI*2);x.fill();
   }else{
-    // Short multi-barrel (machine gun)
-    x.fillStyle='#2a2a2a';
-    x.fillRect(12,35,26,3);
-    x.fillRect(12,38,26,3);
-    x.fillRect(12,41,26,3);
+    // Machine gun - short barrel with ammo belt
+    x.fillStyle='#333';
+    x.fillRect(10,27,22,3);
+    x.fillRect(10,30,22,3);
+    x.fillRect(10,33,22,3);
     // Ammo box
-    x.fillStyle='#444';
-    x.fillRect(55,32,12,10);
+    x.fillStyle='#665533';
+    x.fillRect(54,24,10,10);
+    x.strokeStyle='#444';x.lineWidth=1;
+    x.strokeRect(54,24,10,10);
+    // Bullet stream
+    x.fillStyle='#fa3';
+    for(let i=0;i<3;i++){x.fillRect(3+i*3,29+i*3,2,2);}
   }
+
   // Cupola
   x.fillStyle='#3a4a28';
-  x.fillRect(55,26,10,6);
+  x.fillRect(48,18,8,5);
 }
 
 function showTankChoice(){

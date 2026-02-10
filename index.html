@@ -98,113 +98,161 @@ function getAudio(){
   return audioCtx;
 }
 
-// Realistic cannon shot
+// Realistic tank cannon shot — multi-layer with distortion and echo
 function playCannonShot(){
   try{
   const ctx=getAudio();
   const t=ctx.currentTime;
   const sr=ctx.sampleRate;
 
-  // Layer 1: Explosive noise burst (the initial BANG)
-  const bangLen=Math.floor(sr*0.4);
-  const bangBuf=ctx.createBuffer(1,bangLen,sr);
-  const bangD=bangBuf.getChannelData(0);
-  for(let i=0;i<bangLen;i++){
+  // Compressor to glue layers together
+  const comp=ctx.createDynamicsCompressor();
+  comp.threshold.value=-10;comp.knee.value=5;comp.ratio.value=8;
+  comp.attack.value=0.001;comp.release.value=0.15;
+  comp.connect(ctx.destination);
+
+  // Distortion waveshaper for harsh cannon quality
+  const dist=ctx.createWaveShaper();
+  const curve=new Float32Array(256);
+  for(let i=0;i<256;i++){const x=i/128-1;curve[i]=x<0?-Math.pow(-x,0.6):Math.pow(x,0.6);}
+  dist.curve=curve;dist.oversample='4x';
+  dist.connect(comp);
+
+  // Layer 1: Initial blast — very short, extremely loud white noise burst
+  const blastLen=Math.floor(sr*0.05);
+  const blastBuf=ctx.createBuffer(1,blastLen,sr);
+  const blastD=blastBuf.getChannelData(0);
+  for(let i=0;i<blastLen;i++){
     const p=i/sr;
-    bangD[i]=(Math.random()*2-1)*Math.exp(-p*12);
+    blastD[i]=(Math.random()*2-1)*Math.exp(-p*60);
   }
-  const bangSrc=ctx.createBufferSource();
-  bangSrc.buffer=bangBuf;
-  const bangHP=ctx.createBiquadFilter();
-  bangHP.type='highpass';bangHP.frequency.value=800;
-  const bangGain=ctx.createGain();
-  bangGain.gain.setValueAtTime(0.8,t);
-  bangGain.gain.linearRampToValueAtTime(0,t+0.15);
-  bangSrc.connect(bangHP);bangHP.connect(bangGain);bangGain.connect(ctx.destination);
-  bangSrc.start(t);
+  const blastSrc=ctx.createBufferSource();blastSrc.buffer=blastBuf;
+  const blastG=ctx.createGain();blastG.gain.setValueAtTime(1.0,t);
+  blastSrc.connect(blastG);blastG.connect(dist);
+  blastSrc.start(t);
 
-  // Layer 2: Deep bass boom (the punch you feel)
-  const boomOsc=ctx.createOscillator();
-  boomOsc.type='sine';
-  boomOsc.frequency.setValueAtTime(80,t);
-  boomOsc.frequency.exponentialRampToValueAtTime(20,t+0.3);
-  const boomGain=ctx.createGain();
-  boomGain.gain.setValueAtTime(0.9,t);
-  boomGain.gain.linearRampToValueAtTime(0,t+0.35);
-  boomOsc.connect(boomGain);boomGain.connect(ctx.destination);
-  boomOsc.start(t);boomOsc.stop(t+0.36);
+  // Layer 2: Shockwave — sub-bass concussion (you feel this in your chest)
+  const subOsc=ctx.createOscillator();
+  subOsc.type='sine';
+  subOsc.frequency.setValueAtTime(60,t);
+  subOsc.frequency.exponentialRampToValueAtTime(15,t+0.4);
+  const subG=ctx.createGain();
+  subG.gain.setValueAtTime(1.0,t);
+  subG.gain.linearRampToValueAtTime(0.6,t+0.05);
+  subG.gain.linearRampToValueAtTime(0,t+0.45);
+  subOsc.connect(subG);subG.connect(comp);
+  subOsc.start(t);subOsc.stop(t+0.46);
 
-  // Layer 3: Mid-range crack (the sharp snap)
-  const crackLen=Math.floor(sr*0.08);
+  // Layer 3: Muzzle blast — broadband noise through lowpass (the heavy BOOM)
+  const boomLen=Math.floor(sr*0.5);
+  const boomBuf=ctx.createBuffer(1,boomLen,sr);
+  const boomD=boomBuf.getChannelData(0);
+  for(let i=0;i<boomLen;i++){
+    const p=i/sr;
+    boomD[i]=(Math.random()*2-1)*Math.exp(-p*8);
+  }
+  const boomSrc=ctx.createBufferSource();boomSrc.buffer=boomBuf;
+  const boomLP=ctx.createBiquadFilter();
+  boomLP.type='lowpass';
+  boomLP.frequency.setValueAtTime(2000,t);
+  boomLP.frequency.exponentialRampToValueAtTime(200,t+0.3);
+  const boomG=ctx.createGain();
+  boomG.gain.setValueAtTime(0.9,t);
+  boomG.gain.linearRampToValueAtTime(0,t+0.4);
+  boomSrc.connect(boomLP);boomLP.connect(boomG);boomG.connect(dist);
+  boomSrc.start(t);
+
+  // Layer 4: High crack — the sharp snap heard at distance
+  const crackLen=Math.floor(sr*0.03);
   const crackBuf=ctx.createBuffer(1,crackLen,sr);
   const crackD=crackBuf.getChannelData(0);
-  for(let i=0;i<crackLen;i++){
-    const p=i/sr;
-    crackD[i]=(Math.random()*2-1)*Math.exp(-p*40);
-  }
-  const crackSrc=ctx.createBufferSource();
-  crackSrc.buffer=crackBuf;
-  const crackBP=ctx.createBiquadFilter();
-  crackBP.type='bandpass';crackBP.frequency.value=2500;crackBP.Q.value=0.8;
-  const crackGain=ctx.createGain();
-  crackGain.gain.setValueAtTime(0.7,t);
-  crackSrc.connect(crackBP);crackBP.connect(crackGain);crackGain.connect(ctx.destination);
+  for(let i=0;i<crackLen;i++){crackD[i]=(Math.random()*2-1)*Math.exp(-(i/sr)*100);}
+  const crackSrc=ctx.createBufferSource();crackSrc.buffer=crackBuf;
+  const crackHP=ctx.createBiquadFilter();crackHP.type='highpass';crackHP.frequency.value=3000;
+  const crackG=ctx.createGain();crackG.gain.setValueAtTime(0.6,t);
+  crackSrc.connect(crackHP);crackHP.connect(crackG);crackG.connect(comp);
   crackSrc.start(t);
 
-  // Layer 4: Tail rumble (echo/reverb feel)
-  const tailLen=Math.floor(sr*0.6);
-  const tailBuf=ctx.createBuffer(1,tailLen,sr);
-  const tailD=tailBuf.getChannelData(0);
-  for(let i=0;i<tailLen;i++){
+  // Layer 5: Echo / reverb tail — noise fading slowly through lowpass
+  const echoLen=Math.floor(sr*1.5);
+  const echoBuf=ctx.createBuffer(1,echoLen,sr);
+  const echoD=echoBuf.getChannelData(0);
+  for(let i=0;i<echoLen;i++){
     const p=i/sr;
-    tailD[i]=(Math.random()*2-1)*Math.exp(-p*5)*0.3;
+    echoD[i]=(Math.random()*2-1)*Math.exp(-p*3)*0.15;
   }
-  const tailSrc=ctx.createBufferSource();
-  tailSrc.buffer=tailBuf;
-  const tailLP=ctx.createBiquadFilter();
-  tailLP.type='lowpass';tailLP.frequency.setValueAtTime(600,t);tailLP.frequency.exponentialRampToValueAtTime(100,t+0.5);
-  const tailGain=ctx.createGain();
-  tailGain.gain.setValueAtTime(0.5,t+0.05);
-  tailGain.gain.linearRampToValueAtTime(0,t+0.6);
-  tailSrc.connect(tailLP);tailLP.connect(tailGain);tailGain.connect(ctx.destination);
-  tailSrc.start(t+0.02);
+  const echoSrc=ctx.createBufferSource();echoSrc.buffer=echoBuf;
+  const echoLP=ctx.createBiquadFilter();
+  echoLP.type='lowpass';
+  echoLP.frequency.setValueAtTime(800,t+0.05);
+  echoLP.frequency.exponentialRampToValueAtTime(60,t+1.2);
+  const echoG=ctx.createGain();
+  echoG.gain.setValueAtTime(0,t);
+  echoG.gain.linearRampToValueAtTime(0.4,t+0.06);
+  echoG.gain.linearRampToValueAtTime(0,t+1.5);
+  echoSrc.connect(echoLP);echoLP.connect(echoG);echoG.connect(ctx.destination);
+  echoSrc.start(t+0.04);
+
+  // Layer 6: Mechanical clank — the breach recoil sound
+  const clankLen=Math.floor(sr*0.06);
+  const clankBuf=ctx.createBuffer(1,clankLen,sr);
+  const clankD=clankBuf.getChannelData(0);
+  for(let i=0;i<clankLen;i++){
+    const p=i/sr;
+    clankD[i]=(Math.sin(p*5500*Math.PI*2)*0.3+(Math.random()*2-1)*0.7)*Math.exp(-p*50);
+  }
+  const clankSrc=ctx.createBufferSource();clankSrc.buffer=clankBuf;
+  const clankBP=ctx.createBiquadFilter();clankBP.type='bandpass';clankBP.frequency.value=4000;clankBP.Q.value=2;
+  const clankG=ctx.createGain();
+  clankG.gain.setValueAtTime(0,t+0.01);
+  clankG.gain.linearRampToValueAtTime(0.35,t+0.015);
+  clankG.gain.linearRampToValueAtTime(0,t+0.07);
+  clankSrc.connect(clankBP);clankBP.connect(clankG);clankG.connect(ctx.destination);
+  clankSrc.start(t+0.01);
 
   }catch(e){}
 }
 
-// Realistic explosion
+// Realistic tank explosion
 function playExplosion(){
   try{
   const ctx=getAudio();
   const t=ctx.currentTime;
   const sr=ctx.sampleRate;
-  // Big noise blast
-  const len=Math.floor(sr*0.8);
+
+  // Fireball blast — long noise with sweeping filter
+  const len=Math.floor(sr*1.5);
   const buf=ctx.createBuffer(1,len,sr);
   const d=buf.getChannelData(0);
   for(let i=0;i<len;i++){
     const p=i/sr;
-    d[i]=(Math.random()*2-1)*Math.exp(-p*4);
+    d[i]=(Math.random()*2-1)*Math.exp(-p*2.5);
   }
-  const src=ctx.createBufferSource();
-  src.buffer=buf;
+  const src=ctx.createBufferSource();src.buffer=buf;
   const lp=ctx.createBiquadFilter();
-  lp.type='lowpass';lp.frequency.setValueAtTime(1500,t);lp.frequency.exponentialRampToValueAtTime(80,t+0.7);
+  lp.type='lowpass';
+  lp.frequency.setValueAtTime(4000,t);
+  lp.frequency.exponentialRampToValueAtTime(60,t+1.2);
+  const dist=ctx.createWaveShaper();
+  const curve=new Float32Array(256);
+  for(let i=0;i<256;i++){const x=i/128-1;curve[i]=x<0?-Math.pow(-x,0.5):Math.pow(x,0.5);}
+  dist.curve=curve;
   const g=ctx.createGain();
   g.gain.setValueAtTime(0.9,t);
-  g.gain.linearRampToValueAtTime(0,t+0.8);
-  src.connect(lp);lp.connect(g);g.connect(ctx.destination);
+  g.gain.linearRampToValueAtTime(0,t+1.4);
+  src.connect(lp);lp.connect(dist);dist.connect(g);g.connect(ctx.destination);
   src.start(t);
-  // Deep boom
-  const boom=ctx.createOscillator();
-  boom.type='sine';
-  boom.frequency.setValueAtTime(50,t);
-  boom.frequency.exponentialRampToValueAtTime(15,t+0.5);
+
+  // Sub boom
+  const boom=ctx.createOscillator();boom.type='sine';
+  boom.frequency.setValueAtTime(40,t);
+  boom.frequency.exponentialRampToValueAtTime(10,t+0.8);
   const bg=ctx.createGain();
-  bg.gain.setValueAtTime(0.8,t);
-  bg.gain.linearRampToValueAtTime(0,t+0.6);
+  bg.gain.setValueAtTime(1.0,t);
+  bg.gain.linearRampToValueAtTime(0,t+0.9);
   boom.connect(bg);bg.connect(ctx.destination);
-  boom.start(t);boom.stop(t+0.61);
+  boom.start(t);boom.stop(t+0.91);
+
   }catch(e){}
 }
 

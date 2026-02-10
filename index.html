@@ -14,6 +14,10 @@
     #hp{position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:14px;pointer-events:none}
     #hpBar{width:120px;height:10px;background:#333;border-radius:5px;margin-top:4px}
     #hpFill{width:100%;height:100%;background:#4f4;border-radius:5px;transition:width 0.3s}
+    #ammoDisplay{position:absolute;bottom:120px;right:22px;background:rgba(0,0,0,0.6);color:#4f4;padding:6px 14px;
+      border-radius:10px;font-size:15px;font-weight:bold;pointer-events:none;text-align:center;min-width:80px}
+    #ammoDisplay.reloading{color:#fa0;animation:blink 0.5s infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
     #fireBtn{position:absolute;bottom:30px;right:30px;width:80px;height:80px;border-radius:50%;
       background:radial-gradient(circle at 35% 35%,#ff6644,#cc2200);border:3px solid rgba(255,255,255,0.3);
       color:#fff;font-size:12px;font-weight:bold;display:flex;align-items:center;justify-content:center;
@@ -46,6 +50,7 @@
 <div id="hud">
   <div id="score">Уничтожено: <span id="kills">0</span></div>
   <div id="hp">HP<div id="hpBar"><div id="hpFill"></div></div></div>
+  <div id="ammoDisplay">30 / 30</div>
   <div id="fireBtn">ОГОНЬ</div>
   <div id="joystickArea">
     <div id="joystickBase"></div>
@@ -385,6 +390,9 @@ function resetGame(){
   player={x:0,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0};
   enemies=[]; bullets=[]; explosions=[];
   kills=0;
+  ammo=MAX_AMMO; reloading=false; reloadTimer=0; fireCooldown=0;
+  const ammoEl=document.getElementById('ammoDisplay');
+  if(ammoEl){ammoEl.textContent=MAX_AMMO+' / '+MAX_AMMO;ammoEl.className='';}
   spawnObstacles();
   for(let i=0;i<5;i++)spawnEnemy();
 }
@@ -503,6 +511,11 @@ canvas.addEventListener('mouseup',()=>{mouseCam=false;});
 
 // ===== Update =====
 let fireCooldown=0;
+const MAX_AMMO=30;
+let ammo=MAX_AMMO;
+let reloading=false;
+let reloadTimer=0;
+const RELOAD_TIME=180; // 3 seconds at 60fps
 const dt=1/60;
 
 function update(){
@@ -576,10 +589,24 @@ function update(){
   player.x=Math.max(-WORLD,Math.min(WORLD,player.x));
   player.z=Math.max(-WORLD,Math.min(WORLD,player.z));
 
-  // Auto-fire (always shoots automatically)
+  // Ammo & reload system
   if(fireCooldown>0)fireCooldown--;
-  if(fireCooldown<=0){
+  if(reloading){
+    reloadTimer--;
+    const ammoEl=document.getElementById('ammoDisplay');
+    const sec=Math.ceil(reloadTimer/60);
+    ammoEl.textContent='⟳ '+sec+'с';
+    ammoEl.className='reloading';
+    if(reloadTimer<=0){
+      reloading=false;
+      ammo=MAX_AMMO;
+      ammoEl.textContent=ammo+' / '+MAX_AMMO;
+      ammoEl.className='';
+    }
+  } else if(fireCooldown<=0&&ammo>0){
+    // Auto-fire
     fireCooldown=20;
+    ammo--;
     const dirX=-Math.sin(player.turretAngle);
     const dirZ=-Math.cos(player.turretAngle);
     const bx=player.x+dirX*3;
@@ -591,6 +618,11 @@ function update(){
     playRandomShootSound();
     vibrate(50);
     firePressed=false;
+    document.getElementById('ammoDisplay').textContent=ammo+' / '+MAX_AMMO;
+    if(ammo<=0){
+      reloading=true;
+      reloadTimer=RELOAD_TIME;
+    }
   }
 
   // Enemies AI
@@ -633,6 +665,17 @@ function update(){
     const b=bullets[i];
     b.x+=b.vx;b.z+=b.vz;b.life--;
     if(b.life<=0){bullets.splice(i,1);continue;}
+
+    // Bullet hits obstacle
+    let hitObs=false;
+    for(const o of obstacles){
+      if(Math.abs(b.x-o.x)<o.w/2+0.2&&Math.abs(b.z-o.z)<o.d/2+0.2){
+        hitObs=true;break;
+      }
+    }
+    // Bullet hits world boundary
+    if(Math.abs(b.x)>WORLD||Math.abs(b.z)>WORLD)hitObs=true;
+    if(hitObs){bullets.splice(i,1);continue;}
 
     // Hit enemies
     if(b.owner==='player'){
@@ -735,6 +778,18 @@ function render(){
     m=mat4Mul(mat4Trans(0,0.01,i),mat4Scale(WORLD*2,0.01,0.1));
     drawBox(mat4Mul(vp,m),m,[0.3,0.5,0.2],1);
   }
+
+  // Boundary walls (4 walls around game zone)
+  const wallH=4,wallT=2;
+  const wc=[0.55,0.25,0.2];
+  m=mat4Mul(mat4Trans(0,wallH/2,-WORLD-wallT/2),mat4Scale(WORLD*2+wallT*2,wallH,wallT));
+  drawBox(mat4Mul(vp,m),m,wc,1);
+  m=mat4Mul(mat4Trans(0,wallH/2,WORLD+wallT/2),mat4Scale(WORLD*2+wallT*2,wallH,wallT));
+  drawBox(mat4Mul(vp,m),m,wc,1);
+  m=mat4Mul(mat4Trans(-WORLD-wallT/2,wallH/2,0),mat4Scale(wallT,wallH,WORLD*2+wallT*2));
+  drawBox(mat4Mul(vp,m),m,wc,1);
+  m=mat4Mul(mat4Trans(WORLD+wallT/2,wallH/2,0),mat4Scale(wallT,wallH,WORLD*2+wallT*2));
+  drawBox(mat4Mul(vp,m),m,wc,1);
 
   // Obstacles
   for(const o of obstacles){

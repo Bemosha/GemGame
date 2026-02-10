@@ -197,69 +197,97 @@ function playExplosion(){
   }catch(e){}
 }
 
-// 8-bit shotgun reload (break open, eject, insert, snap shut)
-function playReload(){
+// 8-bit shotgun reload — each stage via setTimeout for mobile compatibility
+function playReloadClick(){
   try{
   const ctx=getAudio();
   const t=ctx.currentTime;
-
-  // 1. Break open — metallic click-clack
+  const o=ctx.createOscillator();
+  const g=ctx.createGain();
+  o.connect(g);g.connect(ctx.destination);
+  o.type='square';
+  o.frequency.setValueAtTime(1400,t);
+  o.frequency.exponentialRampToValueAtTime(300,t+0.08);
+  g.gain.setValueAtTime(0.7,t);
+  g.gain.linearRampToValueAtTime(0,t+0.1);
+  o.start(t);o.stop(t+0.11);
+  }catch(e){}
+}
+function playReloadEject(){
+  try{
+  const ctx=getAudio();
+  const t=ctx.currentTime;
+  // First shell ping
   const o1=ctx.createOscillator();
   const g1=ctx.createGain();
   o1.connect(g1);g1.connect(ctx.destination);
   o1.type='square';
-  o1.frequency.setValueAtTime(1200,t);
-  o1.frequency.exponentialRampToValueAtTime(300,t+0.06);
-  g1.gain.setValueAtTime(0.5,t);
-  g1.gain.linearRampToValueAtTime(0,t+0.08);
-  o1.start(t);o1.stop(t+0.09);
-
-  // 2. Shell eject — two quick high pings falling
+  o1.frequency.setValueAtTime(2200,t);
+  o1.frequency.exponentialRampToValueAtTime(600,t+0.1);
+  g1.gain.setValueAtTime(0.6,t);
+  g1.gain.linearRampToValueAtTime(0,t+0.12);
+  o1.start(t);o1.stop(t+0.13);
+  // Second shell ping
   const o2=ctx.createOscillator();
   const g2=ctx.createGain();
   o2.connect(g2);g2.connect(ctx.destination);
   o2.type='square';
-  o2.frequency.setValueAtTime(2000,t+0.3);
-  o2.frequency.exponentialRampToValueAtTime(800,t+0.38);
-  o2.frequency.setValueAtTime(1800,t+0.42);
-  o2.frequency.exponentialRampToValueAtTime(600,t+0.5);
-  g2.gain.setValueAtTime(0,t+0.29);
-  g2.gain.linearRampToValueAtTime(0.35,t+0.3);
-  g2.gain.linearRampToValueAtTime(0.1,t+0.38);
-  g2.gain.linearRampToValueAtTime(0.35,t+0.42);
-  g2.gain.linearRampToValueAtTime(0,t+0.52);
-  o2.start(t+0.29);o2.stop(t+0.53);
-
-  // 3. Insert shells — two low chunky thuds
-  const o3=ctx.createOscillator();
-  const g3=ctx.createGain();
-  o3.connect(g3);g3.connect(ctx.destination);
-  o3.type='square';
-  o3.frequency.setValueAtTime(200,t+1.0);
-  o3.frequency.exponentialRampToValueAtTime(80,t+1.07);
-  o3.frequency.setValueAtTime(220,t+1.2);
-  o3.frequency.exponentialRampToValueAtTime(90,t+1.27);
-  g3.gain.setValueAtTime(0,t+0.99);
-  g3.gain.linearRampToValueAtTime(0.5,t+1.0);
-  g3.gain.linearRampToValueAtTime(0,t+1.1);
-  g3.gain.linearRampToValueAtTime(0.5,t+1.2);
-  g3.gain.linearRampToValueAtTime(0,t+1.3);
-  o3.start(t+0.99);o3.stop(t+1.31);
-
-  // 4. Snap shut — sharp metallic click
-  const o4=ctx.createOscillator();
-  const g4=ctx.createGain();
-  o4.connect(g4);g4.connect(ctx.destination);
-  o4.type='square';
-  o4.frequency.setValueAtTime(400,t+2.2);
-  o4.frequency.exponentialRampToValueAtTime(1600,t+2.23);
-  o4.frequency.exponentialRampToValueAtTime(200,t+2.3);
-  g4.gain.setValueAtTime(0,t+2.19);
-  g4.gain.linearRampToValueAtTime(0.55,t+2.2);
-  g4.gain.linearRampToValueAtTime(0,t+2.35);
-  o4.start(t+2.19);o4.stop(t+2.36);
-
+  o2.frequency.setValueAtTime(1900,t+0.12);
+  o2.frequency.exponentialRampToValueAtTime(400,t+0.22);
+  g2.gain.setValueAtTime(0,t+0.11);
+  g2.gain.linearRampToValueAtTime(0.5,t+0.12);
+  g2.gain.linearRampToValueAtTime(0,t+0.24);
+  o2.start(t+0.11);o2.stop(t+0.25);
   }catch(e){}
+}
+function playReloadInsert(){
+  try{
+  const ctx=getAudio();
+  const t=ctx.currentTime;
+  // Thud 1
+  const o1=ctx.createOscillator();
+  const g1=ctx.createGain();
+  o1.connect(g1);g1.connect(ctx.destination);
+  o1.type='square';
+  o1.frequency.setValueAtTime(250,t);
+  o1.frequency.exponentialRampToValueAtTime(80,t+0.08);
+  g1.gain.setValueAtTime(0.7,t);
+  g1.gain.linearRampToValueAtTime(0,t+0.1);
+  o1.start(t);o1.stop(t+0.11);
+  // Thud 2
+  const o2=ctx.createOscillator();
+  const g2=ctx.createGain();
+  o2.connect(g2);g2.connect(ctx.destination);
+  o2.type='square';
+  o2.frequency.setValueAtTime(280,t+0.18);
+  o2.frequency.exponentialRampToValueAtTime(90,t+0.26);
+  g2.gain.setValueAtTime(0,t+0.17);
+  g2.gain.linearRampToValueAtTime(0.7,t+0.18);
+  g2.gain.linearRampToValueAtTime(0,t+0.28);
+  o2.start(t+0.17);o2.stop(t+0.29);
+  }catch(e){}
+}
+function playReloadSnap(){
+  try{
+  const ctx=getAudio();
+  const t=ctx.currentTime;
+  const o=ctx.createOscillator();
+  const g=ctx.createGain();
+  o.connect(g);g.connect(ctx.destination);
+  o.type='square';
+  o.frequency.setValueAtTime(350,t);
+  o.frequency.exponentialRampToValueAtTime(1800,t+0.03);
+  o.frequency.exponentialRampToValueAtTime(250,t+0.1);
+  g.gain.setValueAtTime(0.7,t);
+  g.gain.linearRampToValueAtTime(0,t+0.12);
+  o.start(t);o.stop(t+0.13);
+  }catch(e){}
+}
+function playReload(){
+  playReloadClick();
+  setTimeout(playReloadEject,400);
+  setTimeout(playReloadInsert,1200);
+  setTimeout(playReloadSnap,2500);
 }
 
 const funnySounds=[play8bitPew,play8bitLaser,play8bitZap,play8bitBlaster];

@@ -515,7 +515,7 @@ let obstacles=[];
 
 function spawnObstacles(){
   obstacles=[];
-  for(let i=0;i<40;i++){
+  for(let i=0;i<20;i++){
     obstacles.push({
       x:(Math.random()-0.5)*WORLD*1.6,
       z:(Math.random()-0.5)*WORLD*1.6,
@@ -574,8 +574,7 @@ function resetGame(){
   const ammoEl=document.getElementById('ammoDisplay');
   if(ammoEl){ammoEl.textContent=MAX_AMMO+' / '+MAX_AMMO;ammoEl.className='';}
   spawnObstacles();
-  for(let i=0;i<5;i++)spawnEnemy();
-  for(let i=0;i<4;i++)spawnAlly();
+  for(let i=0;i<5;i++){spawnEnemy();spawnAlly();}
 }
 
 // ===== Joystick =====
@@ -721,59 +720,39 @@ function update(){
     player.angle=Math.atan2(-mx,-mz);
   }
 
-  // All tanks for collision
-  const allTanks=[...enemies,...allies];
-
-  // Push player away from all tanks
-  for(const e of allTanks){
-    const dx=player.x-e.x, dz=player.z-e.z;
-    const dist=Math.sqrt(dx*dx+dz*dz);
-    const minDist=3.5;
-    if(dist<minDist&&dist>0.01){
-      const push=(minDist-dist)*0.5;
+  // Tank-tank collision (quick distance check first)
+  function pushTanks(a,b){
+    const dx=a.x-b.x, dz=a.z-b.z;
+    const d2=dx*dx+dz*dz;
+    if(d2<12.25&&d2>0.0001){ // 3.5^2=12.25
+      const dist=Math.sqrt(d2);
+      const push=(3.5-dist)*0.4;
       const nx=dx/dist, nz=dz/dist;
-      player.x+=nx*push; player.z+=nz*push;
-      e.x-=nx*push; e.z-=nz*push;
+      a.x+=nx*push; a.z+=nz*push;
+      b.x-=nx*push; b.z-=nz*push;
     }
   }
 
-  // Push player away from obstacles
+  // Player vs all AI tanks
+  for(const e of enemies)pushTanks(player,e);
+  for(const a of allies)pushTanks(player,a);
+
+  // AI tanks vs each other (only check within ~20 unit range)
+  for(let i=0;i<enemies.length;i++){
+    for(let j=i+1;j<enemies.length;j++)pushTanks(enemies[i],enemies[j]);
+    for(let j=0;j<allies.length;j++)pushTanks(enemies[i],allies[j]);
+  }
+  for(let i=0;i<allies.length;i++){
+    for(let j=i+1;j<allies.length;j++)pushTanks(allies[i],allies[j]);
+  }
+
+  // Player vs obstacles
   for(const o of obstacles){
     const hw=o.w/2+1.5, hd=o.d/2+1.5;
     const dx=player.x-o.x, dz=player.z-o.z;
     if(Math.abs(dx)<hw&&Math.abs(dz)<hd){
-      const overlapX=hw-Math.abs(dx), overlapZ=hd-Math.abs(dz);
-      if(overlapX<overlapZ){player.x+=Math.sign(dx)*overlapX;}
-      else{player.z+=Math.sign(dz)*overlapZ;}
-    }
-  }
-
-  // Push all tanks away from each other
-  for(let i=0;i<allTanks.length;i++){
-    for(let j=i+1;j<allTanks.length;j++){
-      const a=allTanks[i],b=allTanks[j];
-      const dx=a.x-b.x, dz=a.z-b.z;
-      const dist=Math.sqrt(dx*dx+dz*dz);
-      const minDist=3.5;
-      if(dist<minDist&&dist>0.01){
-        const push=(minDist-dist)*0.3;
-        const nx=dx/dist, nz=dz/dist;
-        a.x+=nx*push; a.z+=nz*push;
-        b.x-=nx*push; b.z-=nz*push;
-      }
-    }
-  }
-
-  // Push all tanks away from obstacles
-  for(const t of allTanks){
-    for(const o of obstacles){
-      const hw=o.w/2+1.5, hd=o.d/2+1.5;
-      const dx=t.x-o.x, dz=t.z-o.z;
-      if(Math.abs(dx)<hw&&Math.abs(dz)<hd){
-        const overlapX=hw-Math.abs(dx), overlapZ=hd-Math.abs(dz);
-        if(overlapX<overlapZ){t.x+=Math.sign(dx)*overlapX;}
-        else{t.z+=Math.sign(dz)*overlapZ;}
-      }
+      if(hw-Math.abs(dx)<hd-Math.abs(dz))player.x+=Math.sign(dx)*(hw-Math.abs(dx));
+      else player.z+=Math.sign(dz)*(hd-Math.abs(dz));
     }
   }
 
@@ -917,14 +896,11 @@ function update(){
               vibrate([100,50,100]);
             }
             playExplosion();
-            // Spawn replacement enemies + allies
-            const spawnCount=1+Math.floor(kills/3);
+            // Spawn equal replacements for both teams (max 8 per team)
+            const spawnCount=Math.min(2,1+Math.floor(kills/5));
             for(let s=0;s<spawnCount;s++){
-              setTimeout(()=>{if(gameRunning)spawnEnemy();},1500+s*800);
-            }
-            // Respawn an ally sometimes
-            if(allies.length<6&&Math.random()<0.5){
-              setTimeout(()=>{if(gameRunning)spawnAlly();},2000);
+              setTimeout(()=>{if(gameRunning&&enemies.length<8)spawnEnemy();},1500+s*800);
+              setTimeout(()=>{if(gameRunning&&allies.length<8)spawnAlly();},2000+s*800);
             }
           }
           break;
@@ -961,8 +937,8 @@ function update(){
             allies.splice(j,1);
             const distP=Math.sqrt((a.x-player.x)**2+(a.z-player.z)**2);
             if(distP<50)playExplosion();
-            // Respawn ally after delay
-            setTimeout(()=>{if(gameRunning&&allies.length<5)spawnAlly();},4000);
+            // Always respawn ally to keep teams equal
+            setTimeout(()=>{if(gameRunning&&allies.length<8)spawnAlly();},3000);
           }
           hitAlly=true;break;
         }
@@ -1015,8 +991,8 @@ function render(){
   let m=mat4Mul(mat4Trans(0,-0.1,0),mat4Scale(WORLD*2,0.2,WORLD*2));
   drawBox(mat4Mul(vp,m),m,[0.3,0.38,0.18],1);
 
-  // Grid lines on ground
-  for(let i=-WORLD;i<=WORLD;i+=20){
+  // Grid lines on ground (sparse)
+  for(let i=-WORLD;i<=WORLD;i+=50){
     m=mat4Mul(mat4Trans(i,0.01,0),mat4Scale(0.1,0.01,WORLD*2));
     drawBox(mat4Mul(vp,m),m,[0.28,0.35,0.16],1);
     m=mat4Mul(mat4Trans(0,0.01,i),mat4Scale(WORLD*2,0.01,0.1));
@@ -1041,98 +1017,50 @@ function render(){
     drawBox(mat4Mul(vp,m),m,o.color,1);
   }
 
-  // Draw realistic tank (War Thunder style)
+  // Draw tank (optimized — 13 parts)
   function drawTank(tx,tz,bodyAngle,turretAngle,bodyColor,turretColor,trackColor){
-    // Helper: place box relative to tank origin with body rotation
-    function bPart(ox,oy,oz,sx,sy,sz,col,rot){
-      let m=mat4Mul(mat4Trans(tx,oy,tz),mat4Mul(mat4RotY(bodyAngle),rot?mat4Mul(mat4Trans(ox,0,oz),mat4Mul(rot,mat4Scale(sx,sy,sz))):mat4Mul(mat4Trans(ox,0,oz),mat4Scale(sx,sy,sz))));
-      drawBox(mat4Mul(vp,m),m,col,1);
-    }
-    // Helper: place box relative to tank with turret rotation
-    function tPart(ox,oy,oz,sx,sy,sz,col,rot){
-      let m=mat4Mul(mat4Trans(tx,oy,tz),mat4Mul(mat4RotY(turretAngle),rot?mat4Mul(mat4Trans(ox,0,oz),mat4Mul(rot,mat4Scale(sx,sy,sz))):mat4Mul(mat4Trans(ox,0,oz),mat4Scale(sx,sy,sz))));
-      drawBox(mat4Mul(vp,m),m,col,1);
-    }
-
-    const dc=[bodyColor[0]*0.7,bodyColor[1]*0.7,bodyColor[2]*0.7]; // darker shade
-    const lc=[bodyColor[0]*1.15,bodyColor[1]*1.15,bodyColor[2]*1.15]; // lighter
-    const mc=[trackColor[0]*0.6,trackColor[1]*0.6,trackColor[2]*0.6]; // metal dark
-
-    // === HULL ===
-    // Main hull body
-    bPart(0,0.55,0, 2.6,0.7,3.6, bodyColor);
-    // Upper hull (slightly narrower)
-    bPart(0,0.95,0, 2.4,0.15,3.4, lc);
-    // Front hull slope (angled armor)
-    bPart(0,0.75,-2.0, 2.4,0.5,0.6, dc, mat4RotX(-0.4));
-    // Rear engine deck (lower, slightly raised)
-    bPart(0,0.85,1.5, 2.2,0.2,1.0, dc);
-    // Engine grille
-    bPart(0,0.96,1.6, 1.4,0.05,0.6, mc);
-    // Exhaust pipes (left+right on rear)
-    bPart(-0.8,0.7,2.1, 0.2,0.2,0.5, mc);
-    bPart(0.8,0.7,2.1, 0.2,0.2,0.5, mc);
-
-    // === TRACKS & SUSPENSION ===
-    // Track guards / fenders
-    bPart(-1.45,0.8,0, 0.3,0.08,3.6, dc);
-    bPart(1.45,0.8,0, 0.3,0.08,3.6, dc);
-    // Tracks (left)
-    bPart(-1.45,0.35,0, 0.45,0.55,3.5, trackColor);
-    // Tracks (right)
-    bPart(1.45,0.35,0, 0.45,0.55,3.5, trackColor);
-    // Track wheels (left side — 5 road wheels)
-    for(let i=0;i<5;i++){
-      const wz=-1.4+i*0.7;
-      bPart(-1.45,0.3,wz, 0.5,0.4,0.35, mc);
-    }
-    // Track wheels (right side)
-    for(let i=0;i<5;i++){
-      const wz=-1.4+i*0.7;
-      bPart(1.45,0.3,wz, 0.5,0.4,0.35, mc);
-    }
-    // Drive sprocket (front)
-    bPart(-1.45,0.45,-1.8, 0.5,0.5,0.3, mc);
-    bPart(1.45,0.45,-1.8, 0.5,0.5,0.3, mc);
-    // Idler wheel (rear)
-    bPart(-1.45,0.45,1.7, 0.5,0.45,0.3, mc);
-    bPart(1.45,0.45,1.7, 0.5,0.45,0.3, mc);
-    // Side skirts (armor plates on tracks)
-    bPart(-1.7,0.55,0, 0.06,0.4,2.8, bodyColor);
-    bPart(1.7,0.55,0, 0.06,0.4,2.8, bodyColor);
-
-    // === TURRET ===
-    // Main turret body (wider front, tapered)
-    tPart(0,1.35,0, 1.8,0.65,1.8, turretColor);
-    // Turret front (thicker armor)
-    tPart(0,1.35,-0.7, 1.7,0.55,0.5, turretColor);
-    // Turret rear bustle (ammo storage)
-    tPart(0,1.35,0.8, 1.4,0.5,0.6, [turretColor[0]*0.85,turretColor[1]*0.85,turretColor[2]*0.85]);
-    // Turret top hatch
-    tPart(-0.35,1.72,0.1, 0.4,0.06,0.4, mc);
-    // Commander cupola
-    tPart(-0.35,1.8,0.1, 0.3,0.12,0.3, mc);
-    // Turret ring base
-    tPart(0,1.0,0, 1.5,0.08,1.5, mc);
-
-    // === GUN ===
-    // Mantlet (gun shield)
-    tPart(0,1.35,-1.05, 1.0,0.5,0.3, mc);
-    // Main barrel
-    tPart(0,1.38,-2.5, 0.2,0.2,2.6, mc);
-    // Barrel tip (muzzle brake)
-    tPart(0,1.38,-3.9, 0.3,0.3,0.25, [0.2,0.2,0.2]);
-    // Barrel base (thicker near mantlet)
-    tPart(0,1.38,-1.4, 0.28,0.28,0.5, mc);
-
-    // === DETAILS ===
-    // Front headlight (left)
-    bPart(-1.1,0.75,-1.9, 0.2,0.2,0.1, [0.8,0.8,0.5]);
-    // Front headlight (right)
-    bPart(1.1,0.75,-1.9, 0.2,0.2,0.1, [0.8,0.8,0.5]);
-    // Tow hooks front
-    bPart(-0.9,0.35,-1.85, 0.15,0.1,0.15, mc);
-    bPart(0.9,0.35,-1.85, 0.15,0.1,0.15, mc);
+    const dc=[bodyColor[0]*0.7,bodyColor[1]*0.7,bodyColor[2]*0.7];
+    const mc=[trackColor[0]*0.6,trackColor[1]*0.6,trackColor[2]*0.6];
+    let m;
+    // Hull
+    m=mat4Mul(mat4Trans(tx,0.55,tz),mat4Mul(mat4RotY(bodyAngle),mat4Scale(2.6,0.7,3.6)));
+    drawBox(mat4Mul(vp,m),m,bodyColor,1);
+    // Front slope
+    m=mat4Mul(mat4Trans(tx,0.75,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(0,0,-2.0),mat4Mul(mat4RotX(-0.4),mat4Scale(2.4,0.5,0.6)))));
+    drawBox(mat4Mul(vp,m),m,dc,1);
+    // Engine deck
+    m=mat4Mul(mat4Trans(tx,0.85,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(0,0,1.5),mat4Scale(2.2,0.2,1.0))));
+    drawBox(mat4Mul(vp,m),m,dc,1);
+    // Left track
+    m=mat4Mul(mat4Trans(tx,0.35,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.45,0,0),mat4Scale(0.45,0.55,3.5))));
+    drawBox(mat4Mul(vp,m),m,trackColor,1);
+    // Right track
+    m=mat4Mul(mat4Trans(tx,0.35,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.45,0,0),mat4Scale(0.45,0.55,3.5))));
+    drawBox(mat4Mul(vp,m),m,trackColor,1);
+    // Left skirt
+    m=mat4Mul(mat4Trans(tx,0.55,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.7,0,0),mat4Scale(0.06,0.5,3.0))));
+    drawBox(mat4Mul(vp,m),m,bodyColor,1);
+    // Right skirt
+    m=mat4Mul(mat4Trans(tx,0.55,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.7,0,0),mat4Scale(0.06,0.5,3.0))));
+    drawBox(mat4Mul(vp,m),m,bodyColor,1);
+    // Turret
+    m=mat4Mul(mat4Trans(tx,1.35,tz),mat4Mul(mat4RotY(turretAngle),mat4Scale(1.8,0.65,2.0)));
+    drawBox(mat4Mul(vp,m),m,turretColor,1);
+    // Turret front armor
+    m=mat4Mul(mat4Trans(tx,1.35,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-0.8),mat4Scale(1.6,0.55,0.5))));
+    drawBox(mat4Mul(vp,m),m,turretColor,1);
+    // Mantlet
+    m=mat4Mul(mat4Trans(tx,1.35,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-1.1),mat4Scale(0.9,0.5,0.3))));
+    drawBox(mat4Mul(vp,m),m,mc,1);
+    // Barrel
+    m=mat4Mul(mat4Trans(tx,1.38,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-2.8),mat4Scale(0.2,0.2,3.0))));
+    drawBox(mat4Mul(vp,m),m,mc,1);
+    // Muzzle brake
+    m=mat4Mul(mat4Trans(tx,1.38,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-4.4),mat4Scale(0.3,0.3,0.25))));
+    drawBox(mat4Mul(vp,m),m,[0.2,0.2,0.2],1);
+    // Cupola
+    m=mat4Mul(mat4Trans(tx,1.8,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(-0.35,0,0.2),mat4Scale(0.35,0.15,0.35))));
+    drawBox(mat4Mul(vp,m),m,mc,1);
   }
 
   // Player tank

@@ -98,77 +98,114 @@ function getAudio(){
   return audioCtx;
 }
 
-// 8-bit pew (classic descending square wave)
-function play8bitPew(){
+// Heavy cannon boom — deep bass hit + noise burst
+function playCannon1(){
   try{
   const ctx=getAudio();
-  const osc=ctx.createOscillator();
-  const gain=ctx.createGain();
-  osc.connect(gain);gain.connect(ctx.destination);
-  osc.type='square';
   const t=ctx.currentTime;
-  osc.frequency.setValueAtTime(880,t);
-  osc.frequency.exponentialRampToValueAtTime(110,t+0.15);
-  gain.gain.setValueAtTime(0.5,t);
-  gain.gain.linearRampToValueAtTime(0,t+0.15);
-  osc.start(t);osc.stop(t+0.16);
+  // Bass impact
+  const o=ctx.createOscillator();
+  const g=ctx.createGain();
+  o.connect(g);g.connect(ctx.destination);
+  o.type='square';
+  o.frequency.setValueAtTime(120,t);
+  o.frequency.exponentialRampToValueAtTime(30,t+0.2);
+  g.gain.setValueAtTime(0.7,t);
+  g.gain.linearRampToValueAtTime(0,t+0.25);
+  o.start(t);o.stop(t+0.26);
+  // Noise crack
+  const buf=ctx.createBuffer(1,Math.floor(ctx.sampleRate*0.15),ctx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++){
+    const p=i/d.length;
+    d[i]=(Math.random()*2-1)*Math.exp(-p*8)*(Math.sin(i*0.05)>0?1:-1)*0.5;
+  }
+  const s=ctx.createBufferSource();
+  const g2=ctx.createGain();
+  s.buffer=buf;s.connect(g2);g2.connect(ctx.destination);
+  g2.gain.setValueAtTime(0.6,t);
+  s.start(t);
   }catch(e){}
 }
 
-// 8-bit laser (fast high-pitched sweep)
-function play8bitLaser(){
+// Tank blast — sharp crack + low rumble
+function playCannon2(){
   try{
   const ctx=getAudio();
-  const osc=ctx.createOscillator();
-  const gain=ctx.createGain();
-  osc.connect(gain);gain.connect(ctx.destination);
-  osc.type='square';
   const t=ctx.currentTime;
-  osc.frequency.setValueAtTime(1500,t);
-  osc.frequency.exponentialRampToValueAtTime(200,t+0.1);
-  gain.gain.setValueAtTime(0.45,t);
-  gain.gain.linearRampToValueAtTime(0,t+0.12);
-  osc.start(t);osc.stop(t+0.13);
+  // Sharp crack
+  const o1=ctx.createOscillator();
+  const g1=ctx.createGain();
+  o1.connect(g1);g1.connect(ctx.destination);
+  o1.type='square';
+  o1.frequency.setValueAtTime(500,t);
+  o1.frequency.exponentialRampToValueAtTime(60,t+0.08);
+  g1.gain.setValueAtTime(0.7,t);
+  g1.gain.linearRampToValueAtTime(0,t+0.1);
+  o1.start(t);o1.stop(t+0.11);
+  // Low rumble
+  const o2=ctx.createOscillator();
+  const g2=ctx.createGain();
+  o2.connect(g2);g2.connect(ctx.destination);
+  o2.type='square';
+  o2.frequency.setValueAtTime(55,t);
+  o2.frequency.exponentialRampToValueAtTime(25,t+0.25);
+  g2.gain.setValueAtTime(0.5,t+0.02);
+  g2.gain.linearRampToValueAtTime(0,t+0.28);
+  o2.start(t);o2.stop(t+0.29);
   }catch(e){}
 }
 
-// 8-bit zap (ascending then descending)
-function play8bitZap(){
+// Artillery fire — punchy mid hit + fading tail
+function playCannon3(){
   try{
   const ctx=getAudio();
-  const osc=ctx.createOscillator();
-  const gain=ctx.createGain();
-  osc.connect(gain);gain.connect(ctx.destination);
-  osc.type='square';
   const t=ctx.currentTime;
-  osc.frequency.setValueAtTime(220,t);
-  osc.frequency.exponentialRampToValueAtTime(1200,t+0.05);
-  osc.frequency.exponentialRampToValueAtTime(150,t+0.18);
-  gain.gain.setValueAtTime(0.5,t);
-  gain.gain.linearRampToValueAtTime(0.3,t+0.08);
-  gain.gain.linearRampToValueAtTime(0,t+0.2);
-  osc.start(t);osc.stop(t+0.21);
+  const buf=ctx.createBuffer(1,Math.floor(ctx.sampleRate*0.25),ctx.sampleRate);
+  const d=buf.getChannelData(0);
+  let phase=0;
+  for(let i=0;i<d.length;i++){
+    const p=i/ctx.sampleRate;
+    const freq=180-p*500;
+    phase+=Math.max(freq,20)/ctx.sampleRate;
+    const sq=(Math.sin(phase*Math.PI*2)>0?1:-1);
+    const noise=Math.random()*2-1;
+    d[i]=(sq*0.5+noise*0.4)*Math.exp(-p*7);
+  }
+  const s=ctx.createBufferSource();
+  const g=ctx.createGain();
+  s.buffer=buf;s.connect(g);g.connect(ctx.destination);
+  g.gain.setValueAtTime(0.7,t);
+  s.start(t);
   }catch(e){}
 }
 
-// 8-bit blaster (two-tone square pulse)
-function play8bitBlaster(){
+// Shell fire — double-hit punch
+function playCannon4(){
   try{
   const ctx=getAudio();
-  const osc1=ctx.createOscillator();
-  const osc2=ctx.createOscillator();
-  const gain=ctx.createGain();
-  osc1.connect(gain);osc2.connect(gain);gain.connect(ctx.destination);
-  osc1.type='square';osc2.type='square';
   const t=ctx.currentTime;
-  osc1.frequency.setValueAtTime(600,t);
-  osc1.frequency.exponentialRampToValueAtTime(80,t+0.12);
-  osc2.frequency.setValueAtTime(400,t);
-  osc2.frequency.exponentialRampToValueAtTime(60,t+0.12);
-  gain.gain.setValueAtTime(0.35,t);
-  gain.gain.linearRampToValueAtTime(0,t+0.14);
-  osc1.start(t);osc1.stop(t+0.15);
-  osc2.start(t);osc2.stop(t+0.15);
+  // First punch
+  const o1=ctx.createOscillator();
+  const g1=ctx.createGain();
+  o1.connect(g1);g1.connect(ctx.destination);
+  o1.type='square';
+  o1.frequency.setValueAtTime(300,t);
+  o1.frequency.exponentialRampToValueAtTime(40,t+0.1);
+  g1.gain.setValueAtTime(0.7,t);
+  g1.gain.linearRampToValueAtTime(0,t+0.12);
+  o1.start(t);o1.stop(t+0.13);
+  // Second thud
+  const o2=ctx.createOscillator();
+  const g2=ctx.createGain();
+  o2.connect(g2);g2.connect(ctx.destination);
+  o2.type='square';
+  o2.frequency.setValueAtTime(80,t+0.05);
+  o2.frequency.exponentialRampToValueAtTime(25,t+0.2);
+  g2.gain.setValueAtTime(0,t+0.04);
+  g2.gain.linearRampToValueAtTime(0.55,t+0.05);
+  g2.gain.linearRampToValueAtTime(0,t+0.22);
+  o2.start(t+0.04);o2.stop(t+0.23);
   }catch(e){}
 }
 
@@ -290,7 +327,7 @@ function playReload(){
   setTimeout(playReloadSnap,2500);
 }
 
-const funnySounds=[play8bitPew,play8bitLaser,play8bitZap,play8bitBlaster];
+const funnySounds=[playCannon1,playCannon2,playCannon3,playCannon4];
 function playRandomShootSound(){
   try{funnySounds[Math.floor(Math.random()*funnySounds.length)]();}catch(e){}
 }

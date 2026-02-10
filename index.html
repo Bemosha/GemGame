@@ -46,6 +46,14 @@
     .bs{font-size:15px;color:#888;margin-bottom:20px}
     #minimap{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:100px;height:100px;
       background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);border-radius:8px;pointer-events:none}
+    #tankChoiceScreen{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;
+      justify-content:center;align-items:center;z-index:25;color:#fff;text-align:center;
+      background:rgba(0,0,0,0.8);padding:20px}
+    .tankCard{background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.3);border-radius:12px;
+      padding:8px;cursor:pointer;width:105px;text-align:center;transition:transform 0.15s}
+    .tankCard:active{transform:scale(0.93);background:rgba(255,255,255,0.25)}
+    .tcName{color:#fff;font-weight:bold;font-size:13px;margin-top:4px}
+    .tcDesc{color:#aaa;font-size:11px;margin-top:2px}
   </style>
 </head>
 <body>
@@ -67,6 +75,26 @@
   <h1>Танчики 3D</h1>
   <p class="sub">Води пальцем — управляй танком. Кнопка ОГОНЬ — стреляй! Уничтожай вражеские танки!</p>
   <button class="btn" id="startBtn">В бой!</button>
+</div>
+<div id="tankChoiceScreen" style="display:none">
+  <h1 style="font-size:22px;margin-bottom:16px">Выбери танк!</h1>
+  <div id="tankCards" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:360px">
+    <div class="tankCard" onclick="chooseTank('double')">
+      <canvas id="tcDouble" width="100" height="80"></canvas>
+      <div class="tcName">Двустволка</div>
+      <div class="tcDesc">2 ствола, быстро</div>
+    </div>
+    <div class="tankCard" onclick="chooseTank('sniper')">
+      <canvas id="tcSniper" width="100" height="80"></canvas>
+      <div class="tcName">Снайпер</div>
+      <div class="tcDesc">Далеко, мощно</div>
+    </div>
+    <div class="tankCard" onclick="chooseTank('machinegun')">
+      <canvas id="tcMachinegun" width="100" height="80"></canvas>
+      <div class="tcName">Пулемёт</div>
+      <div class="tcDesc">Очень быстро</div>
+    </div>
+  </div>
 </div>
 <div id="gameOverScreen">
   <div class="emoji-t">💥</div>
@@ -569,7 +597,8 @@ function spawnAlly(){
 function resetGame(){
   player={x:0,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0};
   enemies=[]; allies=[]; bullets=[]; explosions=[];
-  kills=0;
+  kills=0; lastChoiceKills=0; playerClass='normal';
+  MAX_AMMO=TANK_CLASSES.normal.ammo; RELOAD_TIME=TANK_CLASSES.normal.reload;
   ammo=MAX_AMMO; reloading=false; reloadTimer=0; fireCooldown=0;
   const ammoEl=document.getElementById('ammoDisplay');
   if(ammoEl){ammoEl.textContent=MAX_AMMO+' / '+MAX_AMMO;ammoEl.className='';}
@@ -689,13 +718,23 @@ canvas.addEventListener('mousemove',(e)=>{
 });
 canvas.addEventListener('mouseup',()=>{mouseCam=false;});
 
+// ===== Tank Classes =====
+const TANK_CLASSES={
+  normal:{name:'Стандарт',fireRate:10,bulletSpeed:2.5,bulletLife:90,ammo:30,reload:180,barrels:1},
+  double:{name:'Двустволка',fireRate:8,bulletSpeed:2.2,bulletLife:80,ammo:40,reload:200,barrels:2},
+  sniper:{name:'Снайпер',fireRate:30,bulletSpeed:4.0,bulletLife:200,ammo:15,reload:150,barrels:1},
+  machinegun:{name:'Пулемёт',fireRate:4,bulletSpeed:3.0,bulletLife:60,ammo:60,reload:240,barrels:1}
+};
+let playerClass='normal';
+let lastChoiceKills=0;
+
 // ===== Update =====
 let fireCooldown=0;
-const MAX_AMMO=30;
+let MAX_AMMO=30;
 let ammo=MAX_AMMO;
 let reloading=false;
 let reloadTimer=0;
-const RELOAD_TIME=180; // 3 seconds at 60fps
+let RELOAD_TIME=180;
 const dt=1/60;
 
 function update(){
@@ -778,17 +817,21 @@ function update(){
       ammoEl.className='';
     }
   } else if(fireCooldown<=0&&ammo>0){
-    // Auto-fire
-    fireCooldown=20;
+    const cls=TANK_CLASSES[playerClass];
+    fireCooldown=cls.fireRate;
     ammo--;
     const dirX=-Math.sin(player.turretAngle);
     const dirZ=-Math.cos(player.turretAngle);
-    const bx=player.x+dirX*4.5;
-    const bz=player.z+dirZ*4.5;
-    bullets.push({x:bx,y:1.5,z:bz,
-      vx:dirX*30*dt,
-      vz:dirZ*30*dt,
-      life:120,owner:'player'});
+    const spd=cls.bulletSpeed;
+    if(cls.barrels===2){
+      // Double barrel — two bullets with slight offset
+      const ox=Math.cos(player.turretAngle)*0.4;
+      const oz=-Math.sin(player.turretAngle)*0.4;
+      bullets.push({x:player.x+dirX*4.5+ox,y:1.5,z:player.z+dirZ*4.5+oz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:'player'});
+      bullets.push({x:player.x+dirX*4.5-ox,y:1.5,z:player.z+dirZ*4.5-oz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:'player'});
+    }else{
+      bullets.push({x:player.x+dirX*4.5,y:1.5,z:player.z+dirZ*4.5,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:'player'});
+    }
     playRandomShootSound();
     vibrate(50);
     firePressed=false;
@@ -844,9 +887,9 @@ function update(){
       const bx=tank.x+dirX*4.5;
       const bz=tank.z+dirZ*4.5;
       bullets.push({x:bx,y:1.5,z:bz,
-        vx:dirX*20*dt,
-        vz:dirZ*20*dt,
-        life:100,owner:ownerTag});
+        vx:dirX*2.0,
+        vz:dirZ*2.0,
+        life:90,owner:ownerTag});
       const distToPlayer=Math.sqrt((tank.x-player.x)**2+(tank.z-player.z)**2);
       if(distToPlayer<50)playRandomShootSound();
     }
@@ -894,6 +937,7 @@ function update(){
               kills++;
               document.getElementById('kills').textContent=kills;
               vibrate([100,50,100]);
+              checkTankChoice();
             }
             playExplosion();
             // Spawn equal replacements for both teams (max 8 per team)
@@ -971,6 +1015,87 @@ function gameOver(){
   },800);
 }
 
+// ===== Tank Choice System =====
+function drawTankIcon(canvasId,type){
+  const c=document.getElementById(canvasId);
+  if(!c)return;
+  const x=c.getContext('2d');
+  x.clearRect(0,0,100,80);
+  // Hull
+  x.fillStyle='#5a6b3a';
+  x.fillRect(20,45,60,18);
+  // Front slope
+  x.fillStyle='#4a5a2e';
+  x.beginPath();x.moveTo(20,45);x.lineTo(15,55);x.lineTo(20,63);x.fill();
+  // Tracks
+  x.fillStyle='#333';
+  x.fillRect(18,60,64,7);
+  x.fillRect(18,42,64,5);
+  // Turret
+  x.fillStyle='#4e5e32';
+  x.fillRect(35,30,35,18);
+  if(type==='double'){
+    // Two barrels
+    x.fillStyle='#2a2a2a';
+    x.fillRect(10,33,28,4);
+    x.fillRect(10,40,28,4);
+    // Muzzle brakes
+    x.fillStyle='#444';
+    x.fillRect(6,32,6,6);
+    x.fillRect(6,39,6,6);
+  }else if(type==='sniper'){
+    // One long thin barrel
+    x.fillStyle='#2a2a2a';
+    x.fillRect(2,37,36,4);
+    // Muzzle brake
+    x.fillStyle='#444';
+    x.fillRect(0,35,5,8);
+    // Scope
+    x.fillStyle='#556';
+    x.fillRect(40,27,4,6);
+  }else{
+    // Short multi-barrel (machine gun)
+    x.fillStyle='#2a2a2a';
+    x.fillRect(12,35,26,3);
+    x.fillRect(12,38,26,3);
+    x.fillRect(12,41,26,3);
+    // Ammo box
+    x.fillStyle='#444';
+    x.fillRect(55,32,12,10);
+  }
+  // Cupola
+  x.fillStyle='#3a4a28';
+  x.fillRect(55,26,10,6);
+}
+
+function showTankChoice(){
+  gameRunning=false;
+  document.getElementById('tankChoiceScreen').style.display='flex';
+  drawTankIcon('tcDouble','double');
+  drawTankIcon('tcSniper','sniper');
+  drawTankIcon('tcMachinegun','machinegun');
+}
+
+function chooseTank(type){
+  playerClass=type;
+  const cls=TANK_CLASSES[type];
+  MAX_AMMO=cls.ammo;
+  RELOAD_TIME=cls.reload;
+  ammo=MAX_AMMO;
+  reloading=false;reloadTimer=0;fireCooldown=0;
+  const ammoEl=document.getElementById('ammoDisplay');
+  if(ammoEl){ammoEl.textContent=ammo+' / '+MAX_AMMO;ammoEl.className='';}
+  document.getElementById('tankChoiceScreen').style.display='none';
+  gameRunning=true;
+}
+
+function checkTankChoice(){
+  if(kills>0&&kills%5===0&&kills!==lastChoiceKills){
+    lastChoiceKills=kills;
+    showTankChoice();
+  }
+}
+
 // ===== Render =====
 function render(){
   gl.clearColor(0.55,0.75,0.95,1);
@@ -1018,7 +1143,8 @@ function render(){
   }
 
   // Draw tank (optimized — 13 parts)
-  function drawTank(tx,tz,bodyAngle,turretAngle,bodyColor,turretColor,trackColor){
+  function drawTank(tx,tz,bodyAngle,turretAngle,bodyColor,turretColor,trackColor,barrelCount){
+    barrelCount=barrelCount||1;
     const dc=[bodyColor[0]*0.7,bodyColor[1]*0.7,bodyColor[2]*0.7];
     const mc=[trackColor[0]*0.6,trackColor[1]*0.6,trackColor[2]*0.6];
     let m;
@@ -1052,12 +1178,20 @@ function render(){
     // Mantlet
     m=mat4Mul(mat4Trans(tx,1.35,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-1.1),mat4Scale(0.9,0.5,0.3))));
     drawBox(mat4Mul(vp,m),m,mc,1);
-    // Barrel
-    m=mat4Mul(mat4Trans(tx,1.38,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-2.8),mat4Scale(0.2,0.2,3.0))));
-    drawBox(mat4Mul(vp,m),m,mc,1);
-    // Muzzle brake
-    m=mat4Mul(mat4Trans(tx,1.38,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-4.4),mat4Scale(0.3,0.3,0.25))));
-    drawBox(mat4Mul(vp,m),m,[0.2,0.2,0.2],1);
+    // Barrel(s)
+    if(barrelCount===2){
+      for(const off of [0.25,-0.25]){
+        m=mat4Mul(mat4Trans(tx,1.38,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(off,0,-2.8),mat4Scale(0.16,0.16,3.0))));
+        drawBox(mat4Mul(vp,m),m,mc,1);
+        m=mat4Mul(mat4Trans(tx,1.38,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(off,0,-4.4),mat4Scale(0.24,0.24,0.25))));
+        drawBox(mat4Mul(vp,m),m,[0.2,0.2,0.2],1);
+      }
+    }else{
+      m=mat4Mul(mat4Trans(tx,1.38,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-2.8),mat4Scale(0.2,0.2,3.0))));
+      drawBox(mat4Mul(vp,m),m,mc,1);
+      m=mat4Mul(mat4Trans(tx,1.38,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-4.4),mat4Scale(0.3,0.3,0.25))));
+      drawBox(mat4Mul(vp,m),m,[0.2,0.2,0.2],1);
+    }
     // Cupola
     m=mat4Mul(mat4Trans(tx,1.8,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(-0.35,0,0.2),mat4Scale(0.35,0.15,0.35))));
     drawBox(mat4Mul(vp,m),m,mc,1);
@@ -1067,7 +1201,7 @@ function render(){
   if(gameRunning||explosions.some(e=>e.t<0.5)){
     if(player.hp>0){
       drawTank(player.x,player.z,player.angle,player.turretAngle,
-        [0.28,0.33,0.2],[0.25,0.3,0.18],[0.12,0.12,0.1]);
+        [0.28,0.33,0.2],[0.25,0.3,0.18],[0.12,0.12,0.1],TANK_CLASSES[playerClass].barrels);
     }
   }
 

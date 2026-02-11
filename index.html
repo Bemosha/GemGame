@@ -572,7 +572,7 @@ function spawnEnemy(){
     moveTimer:0,
     shootTimer:eshoot,
     team:'red',
-    kills:0,tankClass:randomAIClass()
+    kills:0,tankClass:randomAIClass(),boss:false,bulletDmg:1
   });
 }
 
@@ -592,9 +592,35 @@ function spawnAlly(){
     moveTimer:0,
     shootTimer:60+Math.random()*100,
     team:'green',
-    kills:0,tankClass:randomAIClass()
+    kills:0,tankClass:randomAIClass(),boss:false,bulletDmg:1
   });
 }
+
+function spawnBoss(team){
+  const a=Math.random()*Math.PI*2;
+  const r=50+Math.random()*40;
+  const diff=Math.floor(kills/3);
+  const bhp=(5+diff)*3;
+  const bspeed=2+Math.random()*1.5;
+  const cls=AI_CLASSES[1+Math.floor(Math.random()*3)];
+  const tank={
+    x:player.x+Math.cos(a)*r,
+    z:player.z+Math.sin(a)*r,
+    angle:Math.random()*Math.PI*2,
+    turretAngle:Math.random()*Math.PI*2,
+    hp:bhp,maxHp:bhp,
+    speed:bspeed,
+    moveTimer:0,
+    shootTimer:40+Math.random()*40,
+    team:team,
+    kills:0,tankClass:cls,boss:true,bulletDmg:2
+  };
+  if(team==='red')enemies.push(tank);
+  else allies.push(tank);
+}
+
+let bossTimer=0;
+
 
 function resetGame(){
   player={x:0,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0};
@@ -890,17 +916,26 @@ function update(){
       const bx=tank.x+dirX*4.5;
       const bz=tank.z+dirZ*4.5;
       const spd=cls.bulletSpeed;
+      const dmg=tank.bulletDmg||1;
       if(cls.barrels===2){
         const px=Math.cos(tank.turretAngle)*0.8;
         const pz=-Math.sin(tank.turretAngle)*0.8;
-        bullets.push({x:bx+px,y:1.5,z:bz+pz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:ownerTag,shooter:tank});
-        bullets.push({x:bx-px,y:1.5,z:bz-pz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:ownerTag,shooter:tank});
+        bullets.push({x:bx+px,y:1.5,z:bz+pz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:ownerTag,shooter:tank,dmg:dmg});
+        bullets.push({x:bx-px,y:1.5,z:bz-pz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:ownerTag,shooter:tank,dmg:dmg});
       }else{
-        bullets.push({x:bx,y:1.5,z:bz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:ownerTag,shooter:tank});
+        bullets.push({x:bx,y:1.5,z:bz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:ownerTag,shooter:tank,dmg:dmg});
       }
       const distToPlayer=Math.sqrt((tank.x-player.x)**2+(tank.z-player.z)**2);
       if(distToPlayer<50)playRandomShootSound();
     }
+  }
+
+  // Boss spawn timer
+  bossTimer--;
+  if(bossTimer<=0){
+    bossTimer=900+Math.random()*600;
+    const count=Math.random()<0.4?3:2;
+    for(let b=0;b<count;b++){spawnBoss('red');spawnBoss('green');}
   }
 
   // Enemies AI — target player + allies
@@ -936,7 +971,7 @@ function update(){
         const e=enemies[j];
         const dx=b.x-e.x,dz=b.z-e.z;
         if(dx*dx+dz*dz<4){
-          e.hp--;
+          e.hp-=(b.dmg||1);
           bullets.splice(i,1);
           if(e.hp<=0){
             explosions.push({x:e.x,y:1,z:e.z,t:0});
@@ -968,7 +1003,7 @@ function update(){
       // Hit player
       const dx=b.x-player.x,dz=b.z-player.z;
       if(dx*dx+dz*dz<3){
-        player.hp--;
+        player.hp-=(b.dmg||1);
         bullets.splice(i,1);
         updateHpBar();
         vibrate(200);
@@ -985,7 +1020,7 @@ function update(){
         const a=allies[j];
         const adx=b.x-a.x,adz=b.z-a.z;
         if(adx*adx+adz*adz<4){
-          a.hp--;
+          a.hp-=(b.dmg||1);
           bullets.splice(i,1);
           if(a.hp<=0){
             explosions.push({x:a.x,y:1,z:a.z,t:0});
@@ -1220,57 +1255,59 @@ function render(){
   }
 
   // Draw tank (optimized — 13 parts)
-  function drawTank(tx,tz,bodyAngle,turretAngle,bodyColor,turretColor,trackColor,barrelCount){
+  function drawTank(tx,tz,bodyAngle,turretAngle,bodyColor,turretColor,trackColor,barrelCount,scale){
     barrelCount=barrelCount||1;
+    scale=scale||1;
+    const s=scale;
     const dc=[bodyColor[0]*0.7,bodyColor[1]*0.7,bodyColor[2]*0.7];
     const mc=[trackColor[0]*0.6,trackColor[1]*0.6,trackColor[2]*0.6];
     let m;
     // Hull
-    m=mat4Mul(mat4Trans(tx,0.55,tz),mat4Mul(mat4RotY(bodyAngle),mat4Scale(2.6,0.7,3.6)));
+    m=mat4Mul(mat4Trans(tx,0.55*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Scale(2.6*s,0.7*s,3.6*s)));
     drawBox(mat4Mul(vp,m),m,bodyColor,1);
     // Front slope
-    m=mat4Mul(mat4Trans(tx,0.75,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(0,0,-2.0),mat4Mul(mat4RotX(-0.4),mat4Scale(2.4,0.5,0.6)))));
+    m=mat4Mul(mat4Trans(tx,0.75*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(0,0,-2.0*s),mat4Mul(mat4RotX(-0.4),mat4Scale(2.4*s,0.5*s,0.6*s)))));
     drawBox(mat4Mul(vp,m),m,dc,1);
     // Engine deck
-    m=mat4Mul(mat4Trans(tx,0.85,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(0,0,1.5),mat4Scale(2.2,0.2,1.0))));
+    m=mat4Mul(mat4Trans(tx,0.85*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(0,0,1.5*s),mat4Scale(2.2*s,0.2*s,1.0*s))));
     drawBox(mat4Mul(vp,m),m,dc,1);
     // Left track
-    m=mat4Mul(mat4Trans(tx,0.35,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.45,0,0),mat4Scale(0.45,0.55,3.5))));
+    m=mat4Mul(mat4Trans(tx,0.35*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.45*s,0,0),mat4Scale(0.45*s,0.55*s,3.5*s))));
     drawBox(mat4Mul(vp,m),m,trackColor,1);
     // Right track
-    m=mat4Mul(mat4Trans(tx,0.35,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.45,0,0),mat4Scale(0.45,0.55,3.5))));
+    m=mat4Mul(mat4Trans(tx,0.35*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.45*s,0,0),mat4Scale(0.45*s,0.55*s,3.5*s))));
     drawBox(mat4Mul(vp,m),m,trackColor,1);
     // Left skirt
-    m=mat4Mul(mat4Trans(tx,0.55,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.7,0,0),mat4Scale(0.06,0.5,3.0))));
+    m=mat4Mul(mat4Trans(tx,0.55*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.7*s,0,0),mat4Scale(0.06*s,0.5*s,3.0*s))));
     drawBox(mat4Mul(vp,m),m,bodyColor,1);
     // Right skirt
-    m=mat4Mul(mat4Trans(tx,0.55,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.7,0,0),mat4Scale(0.06,0.5,3.0))));
+    m=mat4Mul(mat4Trans(tx,0.55*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.7*s,0,0),mat4Scale(0.06*s,0.5*s,3.0*s))));
     drawBox(mat4Mul(vp,m),m,bodyColor,1);
     // Turret
-    m=mat4Mul(mat4Trans(tx,1.35,tz),mat4Mul(mat4RotY(turretAngle),mat4Scale(1.8,0.65,2.0)));
+    m=mat4Mul(mat4Trans(tx,1.35*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Scale(1.8*s,0.65*s,2.0*s)));
     drawBox(mat4Mul(vp,m),m,turretColor,1);
     // Turret front armor
-    m=mat4Mul(mat4Trans(tx,1.35,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-0.8),mat4Scale(1.6,0.55,0.5))));
+    m=mat4Mul(mat4Trans(tx,1.35*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-0.8*s),mat4Scale(1.6*s,0.55*s,0.5*s))));
     drawBox(mat4Mul(vp,m),m,turretColor,1);
     // Mantlet
-    m=mat4Mul(mat4Trans(tx,1.35,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-1.1),mat4Scale(0.9,0.5,0.3))));
+    m=mat4Mul(mat4Trans(tx,1.35*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-1.1*s),mat4Scale(0.9*s,0.5*s,0.3*s))));
     drawBox(mat4Mul(vp,m),m,mc,1);
     // Barrel(s)
     if(barrelCount===2){
-      for(const off of [0.25,-0.25]){
-        m=mat4Mul(mat4Trans(tx,1.38,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(off,0,-2.8),mat4Scale(0.16,0.16,3.0))));
+      for(const off of [0.25*s,-0.25*s]){
+        m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(off,0,-2.8*s),mat4Scale(0.16*s,0.16*s,3.0*s))));
         drawBox(mat4Mul(vp,m),m,mc,1);
-        m=mat4Mul(mat4Trans(tx,1.38,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(off,0,-4.4),mat4Scale(0.24,0.24,0.25))));
+        m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(off,0,-4.4*s),mat4Scale(0.24*s,0.24*s,0.25*s))));
         drawBox(mat4Mul(vp,m),m,[0.2,0.2,0.2],1);
       }
     }else{
-      m=mat4Mul(mat4Trans(tx,1.38,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-2.8),mat4Scale(0.2,0.2,3.0))));
+      m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-2.8*s),mat4Scale(0.2*s,0.2*s,3.0*s))));
       drawBox(mat4Mul(vp,m),m,mc,1);
-      m=mat4Mul(mat4Trans(tx,1.38,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-4.4),mat4Scale(0.3,0.3,0.25))));
+      m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-4.4*s),mat4Scale(0.3*s,0.3*s,0.25*s))));
       drawBox(mat4Mul(vp,m),m,[0.2,0.2,0.2],1);
     }
     // Cupola
-    m=mat4Mul(mat4Trans(tx,1.8,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(-0.35,0,0.2),mat4Scale(0.35,0.15,0.35))));
+    m=mat4Mul(mat4Trans(tx,1.8*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(-0.35*s,0,0.2*s),mat4Scale(0.35*s,0.15*s,0.35*s))));
     drawBox(mat4Mul(vp,m),m,mc,1);
   }
 
@@ -1285,13 +1322,13 @@ function render(){
   // Ally tanks (green team)
   for(const a of allies){
     drawTank(a.x,a.z,a.angle,a.turretAngle,
-      [0.2,0.38,0.15],[0.18,0.35,0.13],[0.1,0.12,0.08],TANK_CLASSES[a.tankClass||'normal'].barrels);
+      [0.2,0.38,0.15],[0.18,0.35,0.13],[0.1,0.12,0.08],TANK_CLASSES[a.tankClass||'normal'].barrels,a.boss?1.5:1);
   }
 
   // Enemy tanks (red team)
   for(const e of enemies){
     drawTank(e.x,e.z,e.angle,e.turretAngle,
-      [0.42,0.22,0.15],[0.38,0.2,0.13],[0.15,0.1,0.08],TANK_CLASSES[e.tankClass||'normal'].barrels);
+      [0.42,0.22,0.15],[0.38,0.2,0.13],[0.15,0.1,0.08],TANK_CLASSES[e.tankClass||'normal'].barrels,e.boss?1.5:1);
   }
 
   // HP bars for all tanks
@@ -1299,7 +1336,8 @@ function render(){
   gl.disable(gl.CULL_FACE);
   function drawHpBar(tank,emptyCol){
     const hpPct=tank.hp/tank.maxHp;
-    const barW=3.0,barH=0.35,barY=3.0;
+    const bs=tank.boss?1.5:1;
+    const barW=3.0*bs,barH=0.35*bs,barY=3.0*bs;
     m=mat4Mul(mat4Trans(tank.x,barY,tank.z),mat4Mul(mat4RotY(camYaw),mat4Scale(barW+0.2,barH+0.15,0.01)));
     drawBox(mat4Mul(vp,m),m,[0.05,0.05,0.05],0);
     m=mat4Mul(mat4Trans(tank.x,barY,tank.z),mat4Mul(mat4RotY(camYaw),mat4Scale(barW,barH,0.01)));

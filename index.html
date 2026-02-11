@@ -572,7 +572,7 @@ function spawnEnemy(){
     moveTimer:0,
     shootTimer:eshoot,
     team:'red',
-    kills:0,tankClass:'normal'
+    kills:0,tankClass:randomAIClass()
   });
 }
 
@@ -592,7 +592,7 @@ function spawnAlly(){
     moveTimer:0,
     shootTimer:60+Math.random()*100,
     team:'green',
-    kills:0,tankClass:'normal'
+    kills:0,tankClass:randomAIClass()
   });
 }
 
@@ -1162,10 +1162,15 @@ const AI_CLASSES=['normal','double','sniper','machinegun'];
 function upgradeAITank(tank){
   if(!tank)return;
   tank.kills=(tank.kills||0)+1;
-  if(tank.kills>0&&tank.kills%3===0){
+  if(tank.kills>0&&tank.kills%2===0){
     const choices=AI_CLASSES.filter(c=>c!=='normal');
     tank.tankClass=choices[Math.floor(Math.random()*choices.length)];
   }
+}
+function randomAIClass(){
+  if(kills>=6)return AI_CLASSES[1+Math.floor(Math.random()*3)];
+  if(kills>=3)return Math.random()<0.5?'normal':AI_CLASSES[1+Math.floor(Math.random()*3)];
+  return 'normal';
 }
 
 // ===== Render =====

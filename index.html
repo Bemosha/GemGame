@@ -571,7 +571,8 @@ function spawnEnemy(){
     speed:espeed,
     moveTimer:0,
     shootTimer:eshoot,
-    team:'red'
+    team:'red',
+    kills:0,tankClass:'normal'
   });
 }
 
@@ -590,7 +591,8 @@ function spawnAlly(){
     speed:aspeed,
     moveTimer:0,
     shootTimer:60+Math.random()*100,
-    team:'green'
+    team:'green',
+    kills:0,tankClass:'normal'
   });
 }
 
@@ -879,17 +881,23 @@ function update(){
     tank.turretAngle=Math.atan2(tx-tank.x,tz-tank.z)+Math.PI;
 
     // Shoot
+    const cls=TANK_CLASSES[tank.tankClass||'normal'];
     tank.shootTimer--;
     if(tank.shootTimer<=0){
-      tank.shootTimer=50+Math.random()*30;
+      tank.shootTimer=cls.fireRate+Math.random()*30;
       const dirX=-Math.sin(tank.turretAngle);
       const dirZ=-Math.cos(tank.turretAngle);
       const bx=tank.x+dirX*4.5;
       const bz=tank.z+dirZ*4.5;
-      bullets.push({x:bx,y:1.5,z:bz,
-        vx:dirX*0.35,
-        vz:dirZ*0.35,
-        life:180,owner:ownerTag});
+      const spd=cls.bulletSpeed;
+      if(cls.barrels===2){
+        const px=Math.cos(tank.turretAngle)*0.8;
+        const pz=-Math.sin(tank.turretAngle)*0.8;
+        bullets.push({x:bx+px,y:1.5,z:bz+pz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:ownerTag,shooter:tank});
+        bullets.push({x:bx-px,y:1.5,z:bz-pz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:ownerTag,shooter:tank});
+      }else{
+        bullets.push({x:bx,y:1.5,z:bz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:ownerTag,shooter:tank});
+      }
       const distToPlayer=Math.sqrt((tank.x-player.x)**2+(tank.z-player.z)**2);
       if(distToPlayer<50)playRandomShootSound();
     }
@@ -938,6 +946,8 @@ function update(){
               document.getElementById('kills').textContent=kills;
               vibrate([100,50,100]);
               checkTankChoice();
+            }else if(b.owner==='ally'){
+              upgradeAITank(b.shooter);
             }
             playExplosion();
             // Spawn equal replacements for both teams (max 8 per team)
@@ -964,6 +974,7 @@ function update(){
         vibrate(200);
         if(player.hp<=0){
           explosions.push({x:player.x,y:1,z:player.z,t:0});
+          upgradeAITank(b.shooter);
           gameOver();
         }
         continue;
@@ -979,6 +990,7 @@ function update(){
           if(a.hp<=0){
             explosions.push({x:a.x,y:1,z:a.z,t:0});
             allies.splice(j,1);
+            upgradeAITank(b.shooter);
             const distP=Math.sqrt((a.x-player.x)**2+(a.z-player.z)**2);
             if(distP<50)playExplosion();
             // Always respawn ally to keep teams equal
@@ -1146,6 +1158,15 @@ function checkTankChoice(){
     showTankChoice();
   }
 }
+const AI_CLASSES=['normal','double','sniper','machinegun'];
+function upgradeAITank(tank){
+  if(!tank)return;
+  tank.kills=(tank.kills||0)+1;
+  if(tank.kills>0&&tank.kills%3===0){
+    const choices=AI_CLASSES.filter(c=>c!=='normal');
+    tank.tankClass=choices[Math.floor(Math.random()*choices.length)];
+  }
+}
 
 // ===== Render =====
 function render(){
@@ -1259,13 +1280,13 @@ function render(){
   // Ally tanks (green team)
   for(const a of allies){
     drawTank(a.x,a.z,a.angle,a.turretAngle,
-      [0.2,0.38,0.15],[0.18,0.35,0.13],[0.1,0.12,0.08]);
+      [0.2,0.38,0.15],[0.18,0.35,0.13],[0.1,0.12,0.08],TANK_CLASSES[a.tankClass||'normal'].barrels);
   }
 
   // Enemy tanks (red team)
   for(const e of enemies){
     drawTank(e.x,e.z,e.angle,e.turretAngle,
-      [0.42,0.22,0.15],[0.38,0.2,0.13],[0.15,0.1,0.08]);
+      [0.42,0.22,0.15],[0.38,0.2,0.13],[0.15,0.1,0.08],TANK_CLASSES[e.tankClass||'normal'].barrels);
   }
 
   // HP bars for all tanks

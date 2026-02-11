@@ -720,10 +720,10 @@ canvas.addEventListener('mouseup',()=>{mouseCam=false;});
 
 // ===== Tank Classes =====
 const TANK_CLASSES={
-  normal:{name:'Стандарт',fireRate:150,bulletSpeed:0.35,bulletLife:200,ammo:30,reload:180,barrels:1},
-  double:{name:'Двустволка',fireRate:150,bulletSpeed:0.35,bulletLife:180,ammo:40,reload:200,barrels:2},
-  sniper:{name:'Снайпер',fireRate:150,bulletSpeed:0.35,bulletLife:350,ammo:15,reload:150,barrels:1},
-  machinegun:{name:'Пулемёт',fireRate:150,bulletSpeed:0.35,bulletLife:160,ammo:60,reload:240,barrels:1}
+  normal:{name:'Стандарт',fireRate:60,bulletSpeed:0.35,bulletLife:200,ammo:30,reload:180,barrels:1},
+  double:{name:'Двустволка',fireRate:60,bulletSpeed:0.35,bulletLife:180,ammo:40,reload:200,barrels:2},
+  sniper:{name:'Снайпер',fireRate:60,bulletSpeed:0.35,bulletLife:350,ammo:15,reload:150,barrels:1},
+  machinegun:{name:'Пулемёт',fireRate:60,bulletSpeed:0.35,bulletLife:160,ammo:60,reload:240,barrels:1}
 };
 let playerClass='normal';
 let lastChoiceKills=0;
@@ -881,7 +881,7 @@ function update(){
     // Shoot
     tank.shootTimer--;
     if(tank.shootTimer<=0){
-      tank.shootTimer=120+Math.random()*60;
+      tank.shootTimer=50+Math.random()*30;
       const dirX=-Math.sin(tank.turretAngle);
       const dirZ=-Math.cos(tank.turretAngle);
       const bx=tank.x+dirX*4.5;

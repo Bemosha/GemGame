@@ -720,10 +720,10 @@ canvas.addEventListener('mouseup',()=>{mouseCam=false;});
 
 // ===== Tank Classes =====
 const TANK_CLASSES={
-  normal:{name:'Стандарт',fireRate:360,bulletSpeed:0.08,bulletLife:600,ammo:30,reload:180,barrels:1},
-  double:{name:'Двустволка',fireRate:360,bulletSpeed:0.08,bulletLife:550,ammo:40,reload:200,barrels:2},
-  sniper:{name:'Снайпер',fireRate:360,bulletSpeed:0.08,bulletLife:900,ammo:15,reload:150,barrels:1},
-  machinegun:{name:'Пулемёт',fireRate:360,bulletSpeed:0.08,bulletLife:450,ammo:60,reload:240,barrels:1}
+  normal:{name:'Стандарт',fireRate:360,bulletSpeed:0.03,bulletLife:1500,ammo:30,reload:180,barrels:1},
+  double:{name:'Двустволка',fireRate:360,bulletSpeed:0.03,bulletLife:1400,ammo:40,reload:200,barrels:2},
+  sniper:{name:'Снайпер',fireRate:360,bulletSpeed:0.03,bulletLife:2200,ammo:15,reload:150,barrels:1},
+  machinegun:{name:'Пулемёт',fireRate:360,bulletSpeed:0.03,bulletLife:1200,ammo:60,reload:240,barrels:1}
 };
 let playerClass='normal';
 let lastChoiceKills=0;
@@ -887,9 +887,9 @@ function update(){
       const bx=tank.x+dirX*4.5;
       const bz=tank.z+dirZ*4.5;
       bullets.push({x:bx,y:1.5,z:bz,
-        vx:dirX*0.08,
-        vz:dirZ*0.08,
-        life:500,owner:ownerTag});
+        vx:dirX*0.03,
+        vz:dirZ*0.03,
+        life:1300,owner:ownerTag});
       const distToPlayer=Math.sqrt((tank.x-player.x)**2+(tank.z-player.z)**2);
       if(distToPlayer<50)playRandomShootSound();
     }

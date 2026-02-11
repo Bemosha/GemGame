@@ -620,12 +620,15 @@ function spawnBoss(team){
 }
 
 let bossTimer=0;
+let playerBoss=false;
+let playerBossTimer=0;
 
 
 function resetGame(){
   player={x:0,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0};
   enemies=[]; allies=[]; bullets=[]; explosions=[];
   kills=0; lastChoiceKills=0; playerClass='normal';
+  playerBoss=false; playerBossTimer=0;
   MAX_AMMO=TANK_CLASSES.normal.ammo; RELOAD_TIME=TANK_CLASSES.normal.reload;
   ammo=MAX_AMMO; reloading=false; reloadTimer=0; fireCooldown=0;
   const ammoEl=document.getElementById('ammoDisplay');
@@ -855,10 +858,12 @@ function update(){
       // Double barrel — two bullets with slight offset
       const ox=Math.cos(player.turretAngle)*0.4;
       const oz=-Math.sin(player.turretAngle)*0.4;
-      bullets.push({x:player.x+dirX*4.5+ox,y:1.5,z:player.z+dirZ*4.5+oz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:'player'});
-      bullets.push({x:player.x+dirX*4.5-ox,y:1.5,z:player.z+dirZ*4.5-oz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:'player'});
+      const pd=playerBoss?2:1;
+      bullets.push({x:player.x+dirX*4.5+ox,y:1.5,z:player.z+dirZ*4.5+oz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:'player',dmg:pd});
+      bullets.push({x:player.x+dirX*4.5-ox,y:1.5,z:player.z+dirZ*4.5-oz,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:'player',dmg:pd});
     }else{
-      bullets.push({x:player.x+dirX*4.5,y:1.5,z:player.z+dirZ*4.5,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:'player'});
+      const pd=playerBoss?2:1;
+      bullets.push({x:player.x+dirX*4.5,y:1.5,z:player.z+dirZ*4.5,vx:dirX*spd,vz:dirZ*spd,life:cls.bulletLife,owner:'player',dmg:pd});
     }
     playRandomShootSound();
     vibrate(50);
@@ -936,6 +941,29 @@ function update(){
     bossTimer=900+Math.random()*600;
     const count=Math.random()<0.4?3:2;
     for(let b=0;b<count;b++){spawnBoss('red');spawnBoss('green');}
+  }
+
+  // Player boss mode (very rare ~5% chance every 45-60 sec)
+  if(playerBoss){
+    playerBossTimer--;
+    if(playerBossTimer<=0){
+      playerBoss=false;
+      player.maxHp=5+Math.floor(kills/3);
+      player.hp=Math.min(player.hp,player.maxHp);
+      updateHpBar();
+    }
+  }else{
+    playerBossTimer--;
+    if(playerBossTimer<=0){
+      playerBossTimer=2700+Math.random()*1800;
+      if(Math.random()<0.05){
+        playerBoss=true;
+        playerBossTimer=600;
+        player.maxHp=player.maxHp*3;
+        player.hp=player.maxHp;
+        updateHpBar();
+      }
+    }
   }
 
   // Enemies AI — target player + allies
@@ -1315,7 +1343,9 @@ function render(){
   if(gameRunning||explosions.some(e=>e.t<0.5)){
     if(player.hp>0){
       drawTank(player.x,player.z,player.angle,player.turretAngle,
-        [0.28,0.33,0.2],[0.25,0.3,0.18],[0.12,0.12,0.1],TANK_CLASSES[playerClass].barrels);
+        playerBoss?[0.4,0.45,0.15]:[0.28,0.33,0.2],
+        playerBoss?[0.35,0.4,0.12]:[0.25,0.3,0.18],
+        [0.12,0.12,0.1],TANK_CLASSES[playerClass].barrels,playerBoss?1.5:1);
     }
   }
 

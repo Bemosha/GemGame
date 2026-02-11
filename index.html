@@ -943,7 +943,7 @@ function update(){
     for(let b=0;b<count;b++){spawnBoss('red');spawnBoss('green');}
   }
 
-  // Player boss mode (very rare ~5% chance every 45-60 sec)
+  // Player boss mode (~30% chance every 20-30 sec)
   if(playerBoss){
     playerBossTimer--;
     if(playerBossTimer<=0){
@@ -955,8 +955,8 @@ function update(){
   }else{
     playerBossTimer--;
     if(playerBossTimer<=0){
-      playerBossTimer=2700+Math.random()*1800;
-      if(Math.random()<0.05){
+      playerBossTimer=1200+Math.random()*600;
+      if(Math.random()<0.3){
         playerBoss=true;
         playerBossTimer=600;
         player.maxHp=player.maxHp*3;

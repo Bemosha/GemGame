@@ -691,24 +691,6 @@ function updateJoy(t){
   joystickKnob.style.bottom=(50+dy/br.height*100)+'%';
 }
 
-// Mouse joystick fallback
-let mouseJoy=false;
-joystickArea.addEventListener('mousedown',(e)=>{mouseJoy=true;updateMouseJoy(e);});
-window.addEventListener('mousemove',(e)=>{if(mouseJoy)updateMouseJoy(e);});
-window.addEventListener('mouseup',()=>{mouseJoy=false;joyX=0;joyY=0;joyActive=false;
-  joystickKnob.style.left='50%';joystickKnob.style.bottom='50%';});
-function updateMouseJoy(e){
-  joyActive=true;
-  const c=getJoyCenter();
-  let dx=e.clientX-c.x, dy=-(e.clientY-c.y);
-  const maxR=50,d=Math.sqrt(dx*dx+dy*dy);
-  if(d>maxR){dx=dx/d*maxR;dy=dy/d*maxR;}
-  joyX=dx/maxR;joyY=dy/maxR;
-  const br=joystickBase.getBoundingClientRect();
-  joystickKnob.style.left=(50+dx/br.width*100)+'%';
-  joystickKnob.style.bottom=(50+dy/br.height*100)+'%';
-}
-
 // Keyboard
 const keys={};
 let gamePaused=false;
@@ -752,7 +734,6 @@ canvas.addEventListener('touchmove',(e)=>{
     if(t.identifier===camTouchId){
       const dx=t.clientX-camLastX,dy=t.clientY-camLastY;
       camYaw-=dx*0.005;
-      camPitch=Math.max(0.1,Math.min(1.2,camPitch+dy*0.005));
       camLastX=t.clientX;camLastY=t.clientY;
     }
   }
@@ -761,16 +742,11 @@ canvas.addEventListener('touchend',(e)=>{
   for(const t of e.changedTouches){if(t.identifier===camTouchId)camTouchId=null;}
 });
 
-// Mouse camera
-let mouseCam=false;
-canvas.addEventListener('mousedown',(e)=>{mouseCam=true;camLastX=e.clientX;camLastY=e.clientY;});
+// Mouse camera — move mouse to rotate, no click needed, horizontal only
 canvas.addEventListener('mousemove',(e)=>{
-  if(!mouseCam)return;
-  camYaw-=(e.clientX-camLastX)*0.003;
-  camPitch=Math.max(0.1,Math.min(1.2,camPitch+(e.clientY-camLastY)*0.003));
-  camLastX=e.clientX;camLastY=e.clientY;
+  if(gamePaused)return;
+  camYaw-=e.movementX*0.003;
 });
-canvas.addEventListener('mouseup',()=>{mouseCam=false;});
 
 // ===== Tank Classes =====
 const TANK_CLASSES={

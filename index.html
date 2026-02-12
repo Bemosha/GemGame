@@ -695,13 +695,13 @@ function updateJoy(t){
 const keys={};
 let gamePaused=false;
 window.addEventListener('keydown',(e)=>{
-  keys[e.key]=true;
+  keys[e.code]=true;
   if(e.key==='Escape'&&gameRunning){
     e.preventDefault();
     togglePause();
   }
 });
-window.addEventListener('keyup',(e)=>{keys[e.key]=false;});
+window.addEventListener('keyup',(e)=>{keys[e.code]=false;});
 
 function togglePause(){
   gamePaused=!gamePaused;
@@ -772,11 +772,11 @@ function update(){
 
   // Keyboard input — reset joystick values if no touch/mouse active
   if(!joyActive){joyX=0;joyY=0;}
-  if(keys['ArrowUp']||keys['w'])joyY=Math.max(joyY,1);
-  if(keys['ArrowDown']||keys['s'])joyY=Math.min(joyY,-1);
-  if(keys['ArrowLeft']||keys['a'])joyX=Math.min(joyX,-1);
-  if(keys['ArrowRight']||keys['d'])joyX=Math.max(joyX,1);
-  if(keys[' '])firePressed=true;
+  if(keys['ArrowUp']||keys['KeyW'])joyY=Math.max(joyY,1);
+  if(keys['ArrowDown']||keys['KeyS'])joyY=Math.min(joyY,-1);
+  if(keys['ArrowLeft']||keys['KeyA'])joyX=Math.min(joyX,-1);
+  if(keys['ArrowRight']||keys['KeyD'])joyX=Math.max(joyX,1);
+  if(keys['Space'])firePressed=true;
 
   // Player movement - move in camera direction
   const moveAngle=camYaw;

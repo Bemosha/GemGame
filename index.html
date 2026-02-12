@@ -15,8 +15,8 @@
     #score{position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:16px;pointer-events:none}
     #score span{color:#ff4444;font-weight:bold;font-size:22px}
     #hp{position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:14px;pointer-events:none}
-    #hpBar{width:120px;height:10px;background:#333;border-radius:5px;margin-top:4px}
-    #hpFill{width:100%;height:100%;background:#4f4;border-radius:5px;transition:width 0.3s}
+    #hpBar{width:160px;height:14px;background:#333;border-radius:7px;margin-top:4px}
+    #hpFill{width:100%;height:100%;background:#4f4;border-radius:7px;transition:width 0.3s}
     #ammoDisplay{position:absolute;bottom:120px;right:22px;background:rgba(0,0,0,0.6);color:#4f4;padding:6px 14px;
       border-radius:10px;font-size:15px;font-weight:bold;pointer-events:none;text-align:center;min-width:80px}
     #ammoDisplay.reloading{color:#fa0;animation:blink 0.5s infinite}
@@ -56,9 +56,12 @@
     .tankCard:active{transform:scale(0.93);background:rgba(100,255,100,0.15);border-color:#4f4}
     .tcName{color:#fff;font-weight:bold;font-size:13px;margin-top:4px}
     .tcDesc{color:#aaa;font-size:10px;margin-top:2px}
-    #levelBar{position:absolute;top:50px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;pointer-events:none}
-    #lvlTrack{width:120px;height:8px;background:#333;border-radius:4px;margin-top:3px}
-    #lvlFill{width:0%;height:100%;background:linear-gradient(90deg,#44aaff,#88ddff);border-radius:4px;transition:width 0.3s}
+    #levelBar{position:absolute;top:52px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:6px 12px;border-radius:10px;font-size:14px;pointer-events:none}
+    #lvlTrack{width:160px;height:12px;background:#333;border-radius:6px;margin-top:3px}
+    #lvlFill{width:0%;height:100%;background:linear-gradient(90deg,#44aaff,#88ddff);border-radius:6px;transition:width 0.3s}
+    #nextUpgrade{position:absolute;top:96px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;pointer-events:none}
+    #nextTrack{width:160px;height:12px;background:#333;border-radius:6px;margin-top:3px}
+    #nextFill{width:0%;height:100%;background:linear-gradient(90deg,#ff8844,#ffcc44);border-radius:6px;transition:width 0.3s}
     #upgradeScreen{position:fixed;top:0;left:0;width:100%;height:100%;display:none;flex-direction:column;
       align-items:center;justify-content:center;z-index:26;color:#fff;text-align:center;background:rgba(0,0,0,0.9)}
     .upCard{background:rgba(255,255,255,0.08);border:2px solid rgba(100,180,255,0.4);border-radius:12px;
@@ -77,6 +80,7 @@
   <div id="hp">HP<div id="hpBar"><div id="hpFill"></div></div></div>
   <div id="ammoDisplay">30 / 30</div>
   <div id="levelBar">Ур. <span id="lvlNum">1</span><div id="lvlTrack"><div id="lvlFill"></div></div></div>
+  <div id="nextUpgrade">Танк: <span id="nextKillsText">0/3</span><div id="nextTrack"><div id="nextFill"></div></div></div>
   <div id="fireBtn">ОГОНЬ</div>
   <div id="joystickArea">
     <div id="joystickBase"></div>
@@ -673,15 +677,24 @@ function updateLevelBar(){
   document.getElementById('lvlFill').style.width=pct+'%';
 }
 function addXP(n){
-  if(playerLevel>=10)return;
+  if(playerLevel>=10){
+    // No more levels, show tank choice directly if pending
+    if(pendingTankChoice)showTankChoice();
+    return;
+  }
   playerXP+=n;
+  let leveled=false;
   while(playerLevel<10&&playerXP>=getXPNeeded()){
     playerLevel++;
+    leveled=true;
     showUpgradeScreen();
   }
   updateLevelBar();
+  // If no level up but tank choice pending, show it directly
+  if(!leveled&&pendingTankChoice)showTankChoice();
 }
 function showUpgradeScreen(){
+  if(document.pointerLockElement)document.exitPointerLock();
   document.getElementById('upLevelText').textContent='Уровень '+playerLevel;
   const container=document.getElementById('upgradeCards');
   container.innerHTML='';
@@ -690,7 +703,8 @@ function showUpgradeScreen(){
     if(u.val>=u.max)continue;
     const card=document.createElement('div');
     card.className='upCard';
-    card.innerHTML='<div class="upIcon">'+u.icon+'</div><div class="upName">'+u.name+'</div><div class="upVal">'+u.val+' / '+u.max+'</div>';
+    const bar='<div style="width:100%;height:6px;background:#222;border-radius:3px;margin-top:4px"><div style="width:'+(u.val/u.max*100)+'%;height:100%;background:#4af;border-radius:3px"></div></div>';
+    card.innerHTML='<div class="upIcon">'+u.icon+'</div><div class="upName">'+u.name+'</div><div class="upVal">'+u.val+' / '+u.max+'</div>'+bar;
     card.onclick=(function(k){return function(){chooseUpgrade(k);};})(key);
     container.appendChild(card);
   }
@@ -700,6 +714,12 @@ function chooseUpgrade(key){
   UPGRADES[key].val++;
   document.getElementById('upgradeScreen').style.display='none';
   applyUpgrades();
+  // If tank choice is pending, show it now after upgrade
+  if(pendingTankChoice){
+    setTimeout(()=>{showTankChoice();},200);
+  }else{
+    canvas.requestPointerLock();
+  }
 }
 function applyUpgrades(){
   // Armor: +2 maxHp per level
@@ -717,7 +737,9 @@ function resetGame(){
   playerBoss=false; playerBossTimer=0;
   playerLevel=1; playerXP=0;
   for(const k in UPGRADES)UPGRADES[k].val=0;
+  pendingTankChoice=false;
   updateLevelBar();
+  updateNextBar();
   MAX_AMMO=TANK_CLASSES.normal.ammo; RELOAD_TIME=TANK_CLASSES.normal.reload;
   ammo=MAX_AMMO; reloading=false; reloadTimer=0; fireCooldown=0;
   const ammoEl=document.getElementById('ammoDisplay');
@@ -838,17 +860,19 @@ canvas.addEventListener('mousemove',(e)=>{
   }
 });
 document.addEventListener('pointerlockchange',()=>{
-  if(document.pointerLockElement!==canvas&&gameRunning&&!gamePaused){
+  const upScreen=document.getElementById('upgradeScreen').style.display==='flex';
+  const tcScreen=document.getElementById('tankChoiceScreen').style.display==='flex';
+  if(document.pointerLockElement!==canvas&&gameRunning&&!gamePaused&&!upScreen&&!tcScreen){
     togglePause();
   }
 });
 
 // ===== Tank Classes =====
 const TANK_CLASSES={
-  normal:{name:'Стандарт',fireRate:60,bulletSpeed:0.35,bulletLife:200,ammo:30,reload:180,barrels:1},
-  double:{name:'Двустволка',fireRate:60,bulletSpeed:0.35,bulletLife:180,ammo:40,reload:200,barrels:2},
-  sniper:{name:'Снайпер',fireRate:60,bulletSpeed:0.35,bulletLife:350,ammo:15,reload:150,barrels:1},
-  machinegun:{name:'Пулемёт',fireRate:60,bulletSpeed:0.35,bulletLife:160,ammo:60,reload:240,barrels:1}
+  normal:{name:'Стандарт',fireRate:90,bulletSpeed:0.2,bulletLife:120,ammo:30,reload:180,barrels:1},
+  double:{name:'Двустволка',fireRate:80,bulletSpeed:0.2,bulletLife:110,ammo:40,reload:200,barrels:2},
+  sniper:{name:'Снайпер',fireRate:120,bulletSpeed:0.25,bulletLife:200,ammo:15,reload:150,barrels:1},
+  machinegun:{name:'Пулемёт',fireRate:50,bulletSpeed:0.2,bulletLife:100,ammo:60,reload:240,barrels:1}
 };
 let playerClass='normal';
 let lastChoiceKills=0;
@@ -878,7 +902,7 @@ function update(){
   if(Math.abs(joyY)>0.1||Math.abs(joyX)>0.1){
     const mx=-Math.sin(moveAngle)*joyY + Math.cos(moveAngle)*joyX;
     const mz=-Math.cos(moveAngle)*joyY - Math.sin(moveAngle)*joyX;
-    const sp=(8+UPGRADES.speed.val*1.2)*dt;
+    const sp=(5+UPGRADES.speed.val*1.5)*dt;
     player.x+=mx*sp;
     player.z+=mz*sp;
     // Smooth rotation toward movement direction
@@ -1112,8 +1136,9 @@ function update(){
               kills++;
               document.getElementById('kills').textContent=kills;
               vibrate([100,50,100]);
-              addXP(1);
               checkTankChoice();
+              updateNextBar();
+              addXP(1);
             }else if(b.owner==='ally'){
               upgradeAITank(b.shooter);
             }
@@ -1304,7 +1329,9 @@ function drawTankIcon(canvasId,type){
   x.fillRect(90,26,10,5);
 }
 
+let pendingTankChoice=false;
 function showTankChoice(){
+  if(document.pointerLockElement)document.exitPointerLock();
   document.getElementById('tankChoiceScreen').style.display='flex';
   drawTankIcon('tcDouble','double');
   drawTankIcon('tcSniper','sniper');
@@ -1321,13 +1348,23 @@ function chooseTank(type){
   const ammoEl=document.getElementById('ammoDisplay');
   if(ammoEl){ammoEl.textContent=ammo+' / '+MAX_AMMO;ammoEl.className='';}
   document.getElementById('tankChoiceScreen').style.display='none';
+  pendingTankChoice=false;
+  canvas.requestPointerLock();
+  updateNextBar();
 }
 
 function checkTankChoice(){
   if(kills>0&&kills%3===0&&kills!==lastChoiceKills){
     lastChoiceKills=kills;
-    showTankChoice();
+    pendingTankChoice=true;
   }
+}
+function updateNextBar(){
+  const sinceLastChoice=kills-lastChoiceKills;
+  const needed=3;
+  const pct=Math.min(100,sinceLastChoice/needed*100);
+  document.getElementById('nextFill').style.width=pct+'%';
+  document.getElementById('nextKillsText').textContent=sinceLastChoice+'/'+needed;
 }
 const AI_CLASSES=['normal','double','sniper','machinegun'];
 function upgradeAITank(tank){

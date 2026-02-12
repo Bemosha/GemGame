@@ -706,9 +706,11 @@ window.addEventListener('keyup',(e)=>{keys[e.code]=false;});
 function togglePause(){
   gamePaused=!gamePaused;
   document.getElementById('pauseScreen').style.display=gamePaused?'flex':'none';
+  if(gamePaused&&document.pointerLockElement)document.exitPointerLock();
 }
 document.getElementById('resumeBtn').addEventListener('click',()=>{
   if(gamePaused)togglePause();
+  canvas.requestPointerLock();
 });
 
 // Fire
@@ -742,10 +744,22 @@ canvas.addEventListener('touchend',(e)=>{
   for(const t of e.changedTouches){if(t.identifier===camTouchId)camTouchId=null;}
 });
 
-// Mouse camera — move mouse to rotate, no click needed, horizontal only
+// Mouse camera — pointer lock for infinite rotation
+canvas.addEventListener('click',()=>{
+  if(!gamePaused&&gameRunning){
+    canvas.requestPointerLock();
+  }
+});
 canvas.addEventListener('mousemove',(e)=>{
   if(gamePaused)return;
-  camYaw-=e.movementX*0.003;
+  if(document.pointerLockElement===canvas){
+    camYaw-=e.movementX*0.003;
+  }
+});
+document.addEventListener('pointerlockchange',()=>{
+  if(document.pointerLockElement!==canvas&&gameRunning&&!gamePaused){
+    togglePause();
+  }
 });
 
 // ===== Tank Classes =====
@@ -1088,6 +1102,7 @@ function gameOver(){
   gameRunning=false;
   gamePaused=false;
   document.getElementById('pauseScreen').style.display='none';
+  if(document.pointerLockElement)document.exitPointerLock();
   if(kills>bestKills){bestKills=kills;localStorage.setItem('tank3dBest',bestKills.toString());}
   setTimeout(()=>{
     document.getElementById('finalKills').textContent=kills;

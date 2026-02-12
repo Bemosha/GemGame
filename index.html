@@ -794,7 +794,8 @@ const dt=1/60;
 function update(){
   if(!gameRunning||gamePaused)return;
 
-  // Keyboard input
+  // Keyboard input — reset joystick values if no touch/mouse active
+  if(!joyActive){joyX=0;joyY=0;}
   if(keys['ArrowUp']||keys['w'])joyY=Math.max(joyY,1);
   if(keys['ArrowDown']||keys['s'])joyY=Math.min(joyY,-1);
   if(keys['ArrowLeft']||keys['a'])joyX=Math.min(joyX,-1);

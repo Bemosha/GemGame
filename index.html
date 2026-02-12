@@ -810,8 +810,12 @@ function update(){
     const sp=8*dt;
     player.x+=mx*sp;
     player.z+=mz*sp;
-    // Face movement direction
-    player.angle=Math.atan2(-mx,-mz);
+    // Smooth rotation toward movement direction
+    let targetAngle=Math.atan2(-mx,-mz);
+    let da=targetAngle-player.angle;
+    while(da>Math.PI)da-=Math.PI*2;
+    while(da<-Math.PI)da+=Math.PI*2;
+    player.angle+=da*0.1;
   }
 
   // Tank-tank collision (quick distance check first)

@@ -17,9 +17,6 @@
     #hp{position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:14px;pointer-events:none}
     #hpBar{width:160px;height:14px;background:#333;border-radius:7px;margin-top:4px}
     #hpFill{width:100%;height:100%;background:#4f4;border-radius:7px;transition:width 0.3s}
-    #ammoDisplay{position:absolute;bottom:120px;right:22px;background:rgba(0,0,0,0.6);color:#4f4;padding:6px 14px;
-      border-radius:10px;font-size:15px;font-weight:bold;pointer-events:none;text-align:center;min-width:80px}
-    #ammoDisplay.reloading{color:#fa0;animation:blink 0.5s infinite}
     @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
     #fireBtn{position:absolute;bottom:30px;right:30px;width:80px;height:80px;border-radius:50%;
       background:radial-gradient(circle at 35% 35%,#ff6644,#cc2200);border:3px solid rgba(255,255,255,0.3);
@@ -46,7 +43,7 @@
     .btn:active{transform:scale(0.95)}
     .fs{font-size:56px;font-weight:bold;color:#ff4444;margin:8px 0}
     .bs{font-size:15px;color:#888;margin-bottom:20px}
-    #minimap{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:100px;height:100px;
+    #minimap{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);width:100px;height:100px;
       background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);border-radius:8px;pointer-events:none}
     #tankChoiceScreen{position:fixed;top:0;left:0;width:100%;height:50vh;
       display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:25;color:#fff;text-align:center;
@@ -56,20 +53,30 @@
     .tankCard:active{transform:scale(0.93);background:rgba(100,255,100,0.15);border-color:#4f4}
     .tcName{color:#fff;font-weight:bold;font-size:13px;margin-top:4px}
     .tcDesc{color:#aaa;font-size:10px;margin-top:2px}
-    #levelBar{position:absolute;top:52px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:6px 12px;border-radius:10px;font-size:14px;pointer-events:none}
-    #lvlTrack{width:160px;height:12px;background:#333;border-radius:6px;margin-top:3px}
-    #lvlFill{width:0%;height:100%;background:linear-gradient(90deg,#44aaff,#88ddff);border-radius:6px;transition:width 0.3s}
-    #nextUpgrade{position:absolute;top:96px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;pointer-events:none}
-    #nextTrack{width:160px;height:12px;background:#333;border-radius:6px;margin-top:3px}
-    #nextFill{width:0%;height:100%;background:linear-gradient(90deg,#ff8844,#ffcc44);border-radius:6px;transition:width 0.3s}
-    #upgradeScreen{position:fixed;top:0;left:0;width:100%;height:100%;display:none;flex-direction:column;
-      align-items:center;justify-content:center;z-index:26;color:#fff;text-align:center;background:rgba(0,0,0,0.9)}
-    .upCard{background:rgba(255,255,255,0.08);border:2px solid rgba(100,180,255,0.4);border-radius:12px;
-      padding:10px 14px;cursor:pointer;text-align:center;transition:transform 0.15s;width:130px}
+    #bottomBars{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:8px;
+      background:rgba(0,0,0,0.6);padding:6px 14px;border-radius:12px;pointer-events:none;z-index:11}
+    .barBox{text-align:center;font-size:11px;color:#aaa}
+    .barBox .barLabel{margin-bottom:2px;font-weight:bold}
+    .barTrack{width:100px;height:10px;background:#333;border-radius:5px}
+    .barFill{height:100%;border-radius:5px;transition:width 0.3s}
+    #ammoDisplay{position:absolute;bottom:120px;right:22px;background:rgba(0,0,0,0.6);color:#4f4;padding:6px 14px;
+      border-radius:10px;font-size:15px;font-weight:bold;pointer-events:none;text-align:center;min-width:80px}
+    #ammoDisplay.reloading{color:#fa0;animation:blink 0.5s infinite}
+    #upgradeScreen{position:fixed;bottom:0;left:0;width:100%;height:auto;max-height:45vh;display:none;flex-direction:column;
+      align-items:center;justify-content:center;z-index:26;color:#fff;text-align:center;
+      background:rgba(0,0,0,0.88);border-top:2px solid rgba(100,180,255,0.4);padding:12px 8px}
+    .upCard{background:rgba(255,255,255,0.08);border:2px solid rgba(100,180,255,0.4);border-radius:10px;
+      padding:8px 10px;cursor:pointer;text-align:center;transition:transform 0.15s;width:90px}
     .upCard:active{transform:scale(0.93);background:rgba(100,180,255,0.15);border-color:#4af}
-    .upIcon{font-size:28px}
-    .upName{color:#fff;font-weight:bold;font-size:13px;margin-top:4px}
-    .upVal{color:#4af;font-size:11px;margin-top:2px}
+    .upIcon{font-size:22px}
+    .upName{color:#fff;font-weight:bold;font-size:11px;margin-top:3px}
+    .upVal{color:#4af;font-size:10px;margin-top:1px}
+    #tankChoiceScreen{position:fixed;bottom:0;left:0;width:100%;height:auto;max-height:40vh;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:25;color:#fff;text-align:center;
+      background:rgba(0,0,0,0.88);border-top:2px solid rgba(255,255,255,0.3);padding:10px 8px}
+    .tankCard{background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.3);border-radius:10px;
+      padding:4px 6px;cursor:pointer;text-align:center;transition:transform 0.15s;pointer-events:auto;width:80px}
+    .tankCard:active{transform:scale(0.93);background:rgba(100,255,100,0.15);border-color:#4f4}
   </style>
 </head>
 <body>
@@ -79,8 +86,10 @@
   <div id="score">Уничтожено: <span id="kills">0</span></div>
   <div id="hp">HP<div id="hpBar"><div id="hpFill"></div></div></div>
   <div id="ammoDisplay">30 / 30</div>
-  <div id="levelBar">Ур. <span id="lvlNum">1</span><div id="lvlTrack"><div id="lvlFill"></div></div></div>
-  <div id="nextUpgrade">Танк: <span id="nextKillsText">0/3</span><div id="nextTrack"><div id="nextFill"></div></div></div>
+  <div id="bottomBars">
+    <div class="barBox"><div class="barLabel" style="color:#4af">Ур. <span id="lvlNum">1</span></div><div class="barTrack"><div class="barFill" id="lvlFill" style="background:linear-gradient(90deg,#44aaff,#88ddff)"></div></div></div>
+    <div class="barBox"><div class="barLabel" style="color:#fa4">Танк <span id="nextKillsText">0/3</span></div><div class="barTrack"><div class="barFill" id="nextFill" style="background:linear-gradient(90deg,#ff8844,#ffcc44)"></div></div></div>
+  </div>
   <div id="fireBtn">ОГОНЬ</div>
   <div id="joystickArea">
     <div id="joystickBase"></div>
@@ -95,29 +104,20 @@
   <button class="btn" id="startBtn">В бой!</button>
 </div>
 <div id="tankChoiceScreen" style="display:none">
-  <div style="font-size:18px;font-weight:bold;margin-bottom:10px">Выбери танк!</div>
-  <div id="tankCards" style="display:flex;gap:10px;justify-content:center;width:95%;padding:0 8px">
-    <div class="tankCard" onclick="chooseTank('double')">
-      <canvas id="tcDouble" width="140" height="100" style="width:100%;height:auto"></canvas>
-      <div class="tcName">Двустволка</div>
-      <div class="tcDesc">2 ствола</div>
-    </div>
-    <div class="tankCard" onclick="chooseTank('sniper')">
-      <canvas id="tcSniper" width="140" height="100" style="width:100%;height:auto"></canvas>
-      <div class="tcName">Снайпер</div>
-      <div class="tcDesc">Далёкий</div>
-    </div>
-    <div class="tankCard" onclick="chooseTank('machinegun')">
-      <canvas id="tcMachinegun" width="140" height="100" style="width:100%;height:auto"></canvas>
-      <div class="tcName">Пулемёт</div>
-      <div class="tcDesc">Быстрый</div>
-    </div>
+  <div style="font-size:15px;font-weight:bold;margin-bottom:8px">Выбери танк!</div>
+  <div id="tankCards" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;width:95%;padding:0 4px">
+    <div class="tankCard" onclick="chooseTank('double')"><div class="tcName">Двустволка</div><div class="tcDesc">2 ствола</div></div>
+    <div class="tankCard" onclick="chooseTank('sniper')"><div class="tcName">Снайпер</div><div class="tcDesc">Далёкий</div></div>
+    <div class="tankCard" onclick="chooseTank('machinegun')"><div class="tcName">Пулемёт</div><div class="tcDesc">Быстрый</div></div>
+    <div class="tankCard" onclick="chooseTank('heavy')"><div class="tcName">Тяжёлый</div><div class="tcDesc">Броня</div></div>
+    <div class="tankCard" onclick="chooseTank('rocket')"><div class="tcName">Ракетчик</div><div class="tcDesc">Мощный</div></div>
+    <div class="tankCard" onclick="chooseTank('scout')"><div class="tcName">Разведчик</div><div class="tcDesc">Скорость</div></div>
   </div>
 </div>
 <div id="upgradeScreen">
-  <div style="font-size:22px;font-weight:bold;margin-bottom:6px">Новый уровень!</div>
-  <div style="font-size:14px;color:#4af;margin-bottom:15px" id="upLevelText">Уровень 2</div>
-  <div id="upgradeCards" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:460px;padding:0 10px"></div>
+  <div style="font-size:15px;font-weight:bold;margin-bottom:4px">Прокачка!</div>
+  <div style="font-size:12px;color:#4af;margin-bottom:8px" id="upLevelText">Уровень 2</div>
+  <div id="upgradeCards" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:580px;padding:0 6px"></div>
 </div>
 <div id="pauseScreen">
   <div class="emoji-t">⏸</div>
@@ -871,8 +871,11 @@ document.addEventListener('pointerlockchange',()=>{
 const TANK_CLASSES={
   normal:{name:'Стандарт',fireRate:90,bulletSpeed:0.2,bulletLife:120,ammo:30,reload:180,barrels:1},
   double:{name:'Двустволка',fireRate:80,bulletSpeed:0.2,bulletLife:110,ammo:40,reload:200,barrels:2},
-  sniper:{name:'Снайпер',fireRate:120,bulletSpeed:0.25,bulletLife:200,ammo:15,reload:150,barrels:1},
-  machinegun:{name:'Пулемёт',fireRate:50,bulletSpeed:0.2,bulletLife:100,ammo:60,reload:240,barrels:1}
+  sniper:{name:'Снайпер',fireRate:120,bulletSpeed:0.3,bulletLife:250,ammo:15,reload:150,barrels:1},
+  machinegun:{name:'Пулемёт',fireRate:30,bulletSpeed:0.18,bulletLife:90,ammo:80,reload:240,barrels:1},
+  heavy:{name:'Тяжёлый',fireRate:100,bulletSpeed:0.15,bulletLife:130,ammo:20,reload:200,barrels:1,bonusHp:8},
+  rocket:{name:'Ракетчик',fireRate:140,bulletSpeed:0.22,bulletLife:180,ammo:10,reload:160,barrels:1,bonusDmg:3},
+  scout:{name:'Разведчик',fireRate:70,bulletSpeed:0.2,bulletLife:100,ammo:35,reload:180,barrels:1,bonusSpeed:6}
 };
 let playerClass='normal';
 let lastChoiceKills=0;
@@ -902,7 +905,8 @@ function update(){
   if(Math.abs(joyY)>0.1||Math.abs(joyX)>0.1){
     const mx=-Math.sin(moveAngle)*joyY + Math.cos(moveAngle)*joyX;
     const mz=-Math.cos(moveAngle)*joyY - Math.sin(moveAngle)*joyX;
-    const sp=(5+UPGRADES.speed.val*1.5)*dt;
+    const scoutBonus=TANK_CLASSES[playerClass].bonusSpeed||0;
+    const sp=(5+UPGRADES.speed.val*1.5+scoutBonus)*dt;
     player.x+=mx*sp;
     player.z+=mz*sp;
     // Smooth rotation toward movement direction
@@ -983,7 +987,8 @@ function update(){
     const dirX=-Math.sin(player.turretAngle);
     const dirZ=-Math.cos(player.turretAngle);
     const spd=cls.bulletSpeed;
-    const pDmg=(1+UPGRADES.bulletPower.val*0.3)*(playerBoss?2:1);
+    const rocketBonus=TANK_CLASSES[playerClass].bonusDmg||0;
+    const pDmg=(1+UPGRADES.bulletPower.val*0.3+rocketBonus)*(playerBoss?2:1);
     const pLife=cls.bulletLife+UPGRADES.bulletRange.val*25;
     if(cls.barrels===2){
       const ox=Math.cos(player.turretAngle)*0.4;
@@ -1333,9 +1338,6 @@ let pendingTankChoice=false;
 function showTankChoice(){
   if(document.pointerLockElement)document.exitPointerLock();
   document.getElementById('tankChoiceScreen').style.display='flex';
-  drawTankIcon('tcDouble','double');
-  drawTankIcon('tcSniper','sniper');
-  drawTankIcon('tcMachinegun','machinegun');
 }
 
 function chooseTank(type){
@@ -1345,6 +1347,12 @@ function chooseTank(type){
   RELOAD_TIME=cls.reload;
   ammo=MAX_AMMO;
   reloading=false;reloadTimer=0;fireCooldown=0;
+  // Apply tank bonuses
+  if(cls.bonusHp){
+    player.maxHp=5+UPGRADES.armor.val*2+cls.bonusHp;
+    player.hp=player.maxHp;
+    updateHpBar();
+  }
   const ammoEl=document.getElementById('ammoDisplay');
   if(ammoEl){ammoEl.textContent=ammo+' / '+MAX_AMMO;ammoEl.className='';}
   document.getElementById('tankChoiceScreen').style.display='none';
@@ -1366,7 +1374,7 @@ function updateNextBar(){
   document.getElementById('nextFill').style.width=pct+'%';
   document.getElementById('nextKillsText').textContent=sinceLastChoice+'/'+needed;
 }
-const AI_CLASSES=['normal','double','sniper','machinegun'];
+const AI_CLASSES=['normal','double','sniper','machinegun','heavy','rocket','scout'];
 function upgradeAITank(tank){
   if(!tank)return;
   tank.kills=(tank.kills||0)+1;

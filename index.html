@@ -111,7 +111,6 @@
     <div class="tankCard" onclick="chooseTank('double')"><div class="tcName">Двустволка</div><div class="tcDesc">2 ствола</div></div>
     <div class="tankCard" onclick="chooseTank('sniper')"><div class="tcName">Снайпер</div><div class="tcDesc">Далёкий</div></div>
     <div class="tankCard" onclick="chooseTank('machinegun')"><div class="tcName">Пулемёт</div><div class="tcDesc">Быстрый</div></div>
-    <div class="tankCard" onclick="chooseTank('heavy')"><div class="tcName">Тяжёлый</div><div class="tcDesc">Броня</div></div>
     <div class="tankCard" onclick="chooseTank('rocket')"><div class="tcName">Ракетчик</div><div class="tcDesc">Мощный</div></div>
     <div class="tankCard" onclick="chooseTank('scout')"><div class="tcName">Разведчик</div><div class="tcDesc">Скорость</div></div>
   </div>
@@ -895,7 +894,6 @@ const TANK_CLASSES={
   double:{name:'Двустволка',fireRate:130,bulletSpeed:0.15,bulletLife:110,ammo:40,reload:200,barrels:2},
   sniper:{name:'Снайпер',fireRate:200,bulletSpeed:0.25,bulletLife:250,ammo:15,reload:150,barrels:1},
   machinegun:{name:'Пулемёт',fireRate:60,bulletSpeed:0.14,bulletLife:90,ammo:80,reload:240,barrels:1},
-  heavy:{name:'Тяжёлый',fireRate:170,bulletSpeed:0.12,bulletLife:130,ammo:20,reload:200,barrels:1,bonusHp:8},
   rocket:{name:'Ракетчик',fireRate:220,bulletSpeed:0.18,bulletLife:180,ammo:10,reload:160,barrels:1,bonusDmg:3},
   scout:{name:'Разведчик',fireRate:120,bulletSpeed:0.15,bulletLife:100,ammo:35,reload:180,barrels:1,bonusSpeed:4}
 };
@@ -1349,12 +1347,6 @@ function chooseTank(type){
   RELOAD_TIME=cls.reload;
   ammo=MAX_AMMO;
   reloading=false;reloadTimer=0;fireCooldown=0;
-  // Apply tank bonuses
-  if(cls.bonusHp){
-    player.maxHp=5+UPGRADES.armor.val*2+cls.bonusHp;
-    player.hp=player.maxHp;
-    updateHpBar();
-  }
   const ammoEl=document.getElementById('ammoDisplay');
   if(ammoEl){ammoEl.textContent=ammo+' / '+MAX_AMMO;ammoEl.className='';}
   document.getElementById('tankChoiceScreen').style.display='none';
@@ -1376,7 +1368,7 @@ function updateNextBar(){
   document.getElementById('nextFill').style.width=pct+'%';
   document.getElementById('nextKillsText').textContent=sinceLastChoice+'/'+needed;
 }
-const AI_CLASSES=['normal','double','sniper','machinegun','heavy','rocket','scout'];
+const AI_CLASSES=['normal','double','sniper','machinegun','rocket','scout'];
 function upgradeAITank(tank){
   if(!tank)return;
   tank.kills=(tank.kills||0)+1;

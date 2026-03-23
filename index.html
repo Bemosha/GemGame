@@ -587,10 +587,9 @@ function spawnObstacles(){
 function spawnEnemy(){
   const a=Math.random()*Math.PI*2;
   const r=40+Math.random()*60;
-  const diff=Math.floor(kills/3);
-  const ehp=3+diff;
-  const espeed=3+Math.random()*2+diff*0.5;
-  const eshoot=Math.max(30,60+Math.random()*120-diff*10);
+  const ehp=3;
+  const espeed=3+Math.random()*2;
+  const eshoot=60+Math.random()*120;
   enemies.push({
     x:player.x+Math.cos(a)*r,
     z:player.z+Math.sin(a)*r,
@@ -601,16 +600,15 @@ function spawnEnemy(){
     moveTimer:0,
     shootTimer:eshoot,
     team:'red',
-    kills:0,tankClass:randomAIClass(),boss:false,bulletDmg:1
+    kills:0,tankClass:randomAIClass(),bulletDmg:1
   });
 }
 
 function spawnAlly(){
   const a=Math.random()*Math.PI*2;
   const r=15+Math.random()*30;
-  const diff=Math.floor(kills/3);
-  const ahp=3+diff;
-  const aspeed=3+Math.random()*2+diff*0.3;
+  const ahp=3;
+  const aspeed=3+Math.random()*2;
   allies.push({
     x:player.x+Math.cos(a)*r,
     z:player.z+Math.sin(a)*r,
@@ -621,36 +619,9 @@ function spawnAlly(){
     moveTimer:0,
     shootTimer:60+Math.random()*100,
     team:'green',
-    kills:0,tankClass:randomAIClass(),boss:false,bulletDmg:1
+    kills:0,tankClass:randomAIClass(),bulletDmg:1
   });
 }
-
-function spawnBoss(team){
-  const a=Math.random()*Math.PI*2;
-  const r=50+Math.random()*40;
-  const diff=Math.floor(kills/3);
-  const bhp=(5+diff)*3;
-  const bspeed=2+Math.random()*1.5;
-  const cls=AI_CLASSES[1+Math.floor(Math.random()*3)];
-  const tank={
-    x:player.x+Math.cos(a)*r,
-    z:player.z+Math.sin(a)*r,
-    angle:Math.random()*Math.PI*2,
-    turretAngle:Math.random()*Math.PI*2,
-    hp:bhp,maxHp:bhp,
-    speed:bspeed,
-    moveTimer:0,
-    shootTimer:40+Math.random()*40,
-    team:team,
-    kills:0,tankClass:cls,boss:true,bulletDmg:2
-  };
-  if(team==='red')enemies.push(tank);
-  else allies.push(tank);
-}
-
-let bossTimer=0;
-let playerBoss=false;
-let playerBossTimer=0;
 
 // Level system
 let playerLevel=1;
@@ -734,7 +705,6 @@ function resetGame(){
   player={x:0,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0};
   enemies=[]; allies=[]; bullets=[]; explosions=[];
   kills=0; lastChoiceKills=0; playerClass='normal';
-  playerBoss=false; playerBossTimer=0;
   playerLevel=1; playerXP=0;
   for(const k in UPGRADES)UPGRADES[k].val=0;
   pendingTankChoice=false;
@@ -988,7 +958,7 @@ function update(){
     const dirZ=-Math.cos(player.turretAngle);
     const spd=cls.bulletSpeed;
     const rocketBonus=TANK_CLASSES[playerClass].bonusDmg||0;
-    const pDmg=(1+UPGRADES.bulletPower.val*0.3+rocketBonus)*(playerBoss?2:1);
+    const pDmg=1+UPGRADES.bulletPower.val*0.3+rocketBonus;
     const pLife=cls.bulletLife+UPGRADES.bulletRange.val*25;
     if(cls.barrels===2){
       const ox=Math.cos(player.turretAngle)*0.4;
@@ -1065,37 +1035,6 @@ function update(){
       }
       const distToPlayer=Math.sqrt((tank.x-player.x)**2+(tank.z-player.z)**2);
       if(distToPlayer<50)playRandomShootSound();
-    }
-  }
-
-  // Boss spawn timer
-  bossTimer--;
-  if(bossTimer<=0){
-    bossTimer=900+Math.random()*600;
-    const count=Math.random()<0.4?3:2;
-    for(let b=0;b<count;b++){spawnBoss('red');spawnBoss('green');}
-  }
-
-  // Player boss mode (~30% chance every 20-30 sec)
-  if(playerBoss){
-    playerBossTimer--;
-    if(playerBossTimer<=0){
-      playerBoss=false;
-      player.maxHp=5+Math.floor(kills/3);
-      player.hp=Math.min(player.hp,player.maxHp);
-      updateHpBar();
-    }
-  }else{
-    playerBossTimer--;
-    if(playerBossTimer<=0){
-      playerBossTimer=1200+Math.random()*600;
-      if(Math.random()<0.3){
-        playerBoss=true;
-        playerBossTimer=600;
-        player.maxHp=player.maxHp*3;
-        player.hp=player.maxHp;
-        updateHpBar();
-      }
     }
   }
 
@@ -1374,18 +1313,13 @@ function updateNextBar(){
   document.getElementById('nextFill').style.width=pct+'%';
   document.getElementById('nextKillsText').textContent=sinceLastChoice+'/'+needed;
 }
-const AI_CLASSES=['normal','double','sniper','machinegun','heavy','rocket','scout'];
+const AI_CLASSES=['normal'];
 function upgradeAITank(tank){
   if(!tank)return;
   tank.kills=(tank.kills||0)+1;
-  if(tank.kills>0&&tank.kills%2===0){
-    const choices=AI_CLASSES.filter(c=>c!=='normal');
-    tank.tankClass=choices[Math.floor(Math.random()*choices.length)];
-  }
+  tank.tankClass='normal';
 }
 function randomAIClass(){
-  if(kills>=6)return AI_CLASSES[1+Math.floor(Math.random()*3)];
-  if(kills>=3)return Math.random()<0.5?'normal':AI_CLASSES[1+Math.floor(Math.random()*3)];
   return 'normal';
 }
 
@@ -1496,22 +1430,20 @@ function render(){
   if(gameRunning||explosions.some(e=>e.t<0.5)){
     if(player.hp>0){
       drawTank(player.x,player.z,player.angle,player.turretAngle,
-        playerBoss?[0.4,0.45,0.15]:[0.28,0.33,0.2],
-        playerBoss?[0.35,0.4,0.12]:[0.25,0.3,0.18],
-        [0.12,0.12,0.1],TANK_CLASSES[playerClass].barrels,playerBoss?1.5:1);
+        [0.28,0.33,0.2],[0.25,0.3,0.18],[0.12,0.12,0.1],TANK_CLASSES[playerClass].barrels,1);
     }
   }
 
   // Ally tanks (green team)
   for(const a of allies){
     drawTank(a.x,a.z,a.angle,a.turretAngle,
-      [0.2,0.38,0.15],[0.18,0.35,0.13],[0.1,0.12,0.08],TANK_CLASSES[a.tankClass||'normal'].barrels,a.boss?1.5:1);
+      [0.2,0.38,0.15],[0.18,0.35,0.13],[0.1,0.12,0.08],TANK_CLASSES[a.tankClass||'normal'].barrels,1);
   }
 
   // Enemy tanks (red team)
   for(const e of enemies){
     drawTank(e.x,e.z,e.angle,e.turretAngle,
-      [0.42,0.22,0.15],[0.38,0.2,0.13],[0.15,0.1,0.08],TANK_CLASSES[e.tankClass||'normal'].barrels,e.boss?1.5:1);
+      [0.42,0.22,0.15],[0.38,0.2,0.13],[0.15,0.1,0.08],TANK_CLASSES[e.tankClass||'normal'].barrels,1);
   }
 
   // HP bars for all tanks
@@ -1519,7 +1451,7 @@ function render(){
   gl.disable(gl.CULL_FACE);
   function drawHpBar(tank,emptyCol){
     const hpPct=tank.hp/tank.maxHp;
-    const bs=tank.boss?1.5:1;
+    const bs=1;
     const barW=3.0*bs,barH=0.35*bs,barY=3.0*bs;
     m=mat4Mul(mat4Trans(tank.x,barY,tank.z),mat4Mul(mat4RotY(camYaw),mat4Scale(barW+0.2,barH+0.15,0.01)));
     drawBox(mat4Mul(vp,m),m,[0.05,0.05,0.05],0);

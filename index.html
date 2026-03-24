@@ -41,6 +41,8 @@
     .btn{background:linear-gradient(135deg,#1e90ff,#0066cc);color:#fff;border:none;padding:14px 36px;font-size:18px;
       border-radius:30px;cursor:pointer;box-shadow:0 4px 15px rgba(30,144,255,0.25)}
     .btn:active{transform:scale(0.95)}
+    #startBtn{background:linear-gradient(135deg,#ff3b30,#c81d13);box-shadow:0 4px 15px rgba(255,59,48,0.35)}
+    #startBtn:active{background:linear-gradient(135deg,#ff5a50,#df2f23)}
     .fs{font-size:56px;font-weight:bold;color:#ff4444;margin:8px 0}
     .bs{font-size:15px;color:#888;margin-bottom:20px}
     #minimap{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);width:100px;height:100px;
@@ -62,20 +64,22 @@
     #ammoDisplay{position:absolute;bottom:120px;right:22px;background:rgba(0,0,0,0.6);color:#4f4;padding:6px 14px;
       border-radius:10px;font-size:15px;font-weight:bold;pointer-events:none;text-align:center;min-width:80px}
     #ammoDisplay.reloading{color:#fa0;animation:blink 0.5s infinite}
-    #upgradeScreen{position:fixed;bottom:0;left:0;width:100%;height:auto;max-height:45vh;display:none;flex-direction:column;
-      align-items:center;justify-content:center;z-index:26;color:#fff;text-align:center;
-      background:rgba(0,0,0,0.88);border-top:2px solid rgba(100,180,255,0.4);padding:12px 8px}
+    #upgradeScreen{position:fixed;right:10px;bottom:10px;width:min(320px,92vw);height:auto;max-height:30vh;display:none;flex-direction:column;
+      align-items:center;justify-content:flex-start;z-index:26;color:#fff;text-align:center;
+      background:rgba(0,0,0,0.65);border:1px solid rgba(100,180,255,0.35);border-radius:12px;padding:8px 6px;pointer-events:none}
     .upCard{background:rgba(255,255,255,0.08);border:2px solid rgba(100,180,255,0.4);border-radius:10px;
       padding:8px 10px;cursor:pointer;text-align:center;transition:transform 0.15s;width:90px}
+    #upgradeCards,.upCard{pointer-events:auto}
     .upCard:active{transform:scale(0.93);background:rgba(100,180,255,0.15);border-color:#4af}
     .upIcon{font-size:22px}
     .upName{color:#fff;font-weight:bold;font-size:11px;margin-top:3px}
     .upVal{color:#4af;font-size:10px;margin-top:1px}
-    #tankChoiceScreen{position:fixed;bottom:0;left:0;width:100%;height:auto;max-height:40vh;
-      display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:25;color:#fff;text-align:center;
-      background:rgba(0,0,0,0.88);border-top:2px solid rgba(255,255,255,0.3);padding:10px 8px}
+    #tankChoiceScreen{position:fixed;left:10px;bottom:10px;width:min(330px,92vw);height:auto;max-height:32vh;
+      display:flex;flex-direction:column;align-items:center;justify-content:flex-start;z-index:25;color:#fff;text-align:center;
+      background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.28);border-radius:12px;padding:8px 6px;pointer-events:none}
     .tankCard{background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.3);border-radius:10px;
-      padding:4px 6px;cursor:pointer;text-align:center;transition:transform 0.15s;pointer-events:auto;width:80px}
+      padding:4px 6px;cursor:pointer;text-align:center;transition:transform 0.15s;pointer-events:auto;width:74px}
+    #tankCards,.tankCard{pointer-events:auto}
     .tankCard:active{transform:scale(0.93);background:rgba(100,255,100,0.15);border-color:#4f4}
   </style>
 </head>
@@ -624,6 +628,8 @@ function mat4RotZ(a){const o=mat4(),c=Math.cos(a),s=Math.sin(a);o[0]=c;o[1]=s;o[
 let gameRunning=false, kills=0, bestKills=parseInt(localStorage.getItem('tank3dBest')||'0');
 
 const WORLD=200; // world half-size
+const ENEMY_TEAM_SIZE=5;
+const ALLY_TEAM_SIZE=5;
 
 // Player
 let player={x:0,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0,rotSpeed:0};
@@ -692,33 +698,6 @@ function spawnAlly(){
   });
 }
 
-function spawnBoss(team){
-  const a=Math.random()*Math.PI*2;
-  const r=50+Math.random()*40;
-  const diff=Math.floor(kills/3);
-  const bhp=(5+diff)*3;
-  const bspeed=2+Math.random()*1.5;
-  const cls=AI_CLASSES[1+Math.floor(Math.random()*3)];
-  const tank={
-    x:player.x+Math.cos(a)*r,
-    z:player.z+Math.sin(a)*r,
-    angle:Math.random()*Math.PI*2,
-    turretAngle:Math.random()*Math.PI*2,
-    hp:bhp,maxHp:bhp,
-    speed:bspeed,
-    moveTimer:0,
-    shootTimer:40+Math.random()*40,
-    team:team,
-    kills:0,tankClass:cls,boss:true,bulletDmg:2
-  };
-  if(team==='red')enemies.push(tank);
-  else allies.push(tank);
-}
-
-let bossTimer=0;
-let playerBoss=false;
-let playerBossTimer=0;
-
 // Level system
 let playerLevel=1;
 let playerXP=0;
@@ -761,7 +740,6 @@ function addXP(n){
   if(!leveled&&pendingTankChoice)showTankChoice();
 }
 function showUpgradeScreen(){
-  if(document.pointerLockElement)document.exitPointerLock();
   document.getElementById('upLevelText').textContent='Уровень '+playerLevel;
   const container=document.getElementById('upgradeCards');
   container.innerHTML='';
@@ -784,8 +762,6 @@ function chooseUpgrade(key){
   // If tank choice is pending, show it now after upgrade
   if(pendingTankChoice){
     setTimeout(()=>{showTankChoice();},200);
-  }else{
-    canvas.requestPointerLock();
   }
 }
 function applyUpgrades(){
@@ -811,11 +787,15 @@ function resetGame(){
   ammo=MAX_AMMO; reloading=false; reloadTimer=0; fireCooldown=0;
   const ammoEl=document.getElementById('ammoDisplay');
   if(ammoEl){ammoEl.textContent=MAX_AMMO+' / '+MAX_AMMO;ammoEl.className='';}
+
+  // Стартовый баланс команд
+  while(enemies.length<ENEMY_TEAM_SIZE)spawnEnemy();
+  while(allies.length<ALLY_TEAM_SIZE)spawnAlly();
+  while(enemies.length>ENEMY_TEAM_SIZE)enemies.pop();
+  while(allies.length>ALLY_TEAM_SIZE)allies.pop();
   spawnObstacles();
-  for(let i=0;i<5;i++){spawnEnemy();spawnAlly();}
 }
 
-// ===== Joystick =====
 const joystickArea=document.getElementById('joystickArea');
 const joystickKnob=document.getElementById('joystickKnob');
 const joystickBase=document.getElementById('joystickBase');
@@ -1055,7 +1035,7 @@ function update(){
     const dirZ=-Math.cos(player.turretAngle);
     const spd=cls.bulletSpeed;
     const rocketBonus=TANK_CLASSES[playerClass].bonusDmg||0;
-    const pDmg=(1+UPGRADES.bulletPower.val*0.3+rocketBonus)*(playerBoss?2:1);
+    const pDmg=(1+UPGRADES.bulletPower.val*0.3+rocketBonus);
     const pLife=cls.bulletLife+UPGRADES.bulletRange.val*25;
     if(cls.barrels===2){
       const ox=Math.cos(player.turretAngle)*0.4;
@@ -1135,36 +1115,9 @@ function update(){
     }
   }
 
-  // Boss spawn timer
-  bossTimer--;
-  if(bossTimer<=0){
-    bossTimer=900+Math.random()*600;
-    const count=Math.random()<0.4?3:2;
-    for(let b=0;b<count;b++){spawnBoss('red');spawnBoss('green');}
-  }
 
-  // Player boss mode (~30% chance every 20-30 sec)
-  if(playerBoss){
-    playerBossTimer--;
-    if(playerBossTimer<=0){
-      playerBoss=false;
-      player.maxHp=5+Math.floor(kills/3);
-      player.hp=Math.min(player.hp,player.maxHp);
-      updateHpBar();
-    }
-  }else{
-    playerBossTimer--;
-    if(playerBossTimer<=0){
-      playerBossTimer=1200+Math.random()*600;
-      if(Math.random()<0.3){
-        playerBoss=true;
-        playerBossTimer=600;
-        player.maxHp=player.maxHp*3;
-        player.hp=player.maxHp;
-        updateHpBar();
-      }
-    }
-  }
+  // Big/boss tank mode disabled
+  playerBoss=false;
 
   // Enemies AI — target player + allies
   for(const e of enemies){
@@ -1215,11 +1168,11 @@ function update(){
               upgradeAITank(b.shooter);
             }
             playExplosion();
-            // Spawn equal replacements for both teams (max 8 per team)
+            // Respawn with team caps
             const spawnCount=Math.min(2,1+Math.floor(kills/5));
             for(let s=0;s<spawnCount;s++){
-              setTimeout(()=>{if(gameRunning&&enemies.length<8)spawnEnemy();},1500+s*800);
-              setTimeout(()=>{if(gameRunning&&allies.length<8)spawnAlly();},2000+s*800);
+              setTimeout(()=>{if(gameRunning&&enemies.length<ENEMY_TEAM_SIZE)spawnEnemy();},1500+s*800);
+              setTimeout(()=>{if(gameRunning&&allies.length<ALLY_TEAM_SIZE)spawnAlly();},2000+s*800);
             }
           }
           break;
@@ -1258,8 +1211,8 @@ function update(){
             upgradeAITank(b.shooter);
             const distP=Math.sqrt((a.x-player.x)**2+(a.z-player.z)**2);
             if(distP<50)playExplosion();
-            // Always respawn ally to keep teams equal
-            setTimeout(()=>{if(gameRunning&&allies.length<8)spawnAlly();},3000);
+            // Respawn ally only up to ally team cap
+            setTimeout(()=>{if(gameRunning&&allies.length<ALLY_TEAM_SIZE)spawnAlly();},3000);
           }
           hitAlly=true;break;
         }
@@ -1403,7 +1356,6 @@ function drawTankIcon(canvasId,type){
 
 let pendingTankChoice=false;
 function showTankChoice(){
-  if(document.pointerLockElement)document.exitPointerLock();
   document.getElementById('tankChoiceScreen').style.display='flex';
 }
 
@@ -1424,7 +1376,6 @@ function chooseTank(type){
   if(ammoEl){ammoEl.textContent=ammo+' / '+MAX_AMMO;ammoEl.className='';}
   document.getElementById('tankChoiceScreen').style.display='none';
   pendingTankChoice=false;
-  canvas.requestPointerLock();
   updateNextBar();
 }
 
@@ -1502,83 +1453,138 @@ function render(){
     drawBox(mat4Mul(vp,m),m,o.color,1);
   }
 
-  // Draw tank (optimized — 13 parts)
+  // Draw tank (more realistic silhouette/details)
   function drawTank(tx,tz,bodyAngle,turretAngle,bodyColor,turretColor,trackColor,barrelCount,scale){
     barrelCount=barrelCount||1;
     scale=scale||1;
     const s=scale;
-    const dc=[bodyColor[0]*0.7,bodyColor[1]*0.7,bodyColor[2]*0.7];
-    const mc=[trackColor[0]*0.6,trackColor[1]*0.6,trackColor[2]*0.6];
+    const dc=[bodyColor[0]*0.72,bodyColor[1]*0.72,bodyColor[2]*0.72];
+    const mc=[trackColor[0]*0.62,trackColor[1]*0.62,trackColor[2]*0.62];
+    const steel=[0.22,0.23,0.24];
+    const rubber=[0.08,0.08,0.08];
     let m;
-    // Hull
-    m=mat4Mul(mat4Trans(tx,0.55*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Scale(2.6*s,0.7*s,3.6*s)));
+
+    // Lower hull
+    m=mat4Mul(mat4Trans(tx,0.42*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Scale(2.7*s,0.52*s,3.9*s)));
     drawBox(mat4Mul(vp,m),m,bodyColor,1);
-    // Front slope
-    m=mat4Mul(mat4Trans(tx,0.75*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(0,0,-2.0*s),mat4Mul(mat4RotX(-0.4),mat4Scale(2.4*s,0.5*s,0.6*s)))));
+
+    // Upper hull / glacis
+    m=mat4Mul(mat4Trans(tx,0.78*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Scale(2.45*s,0.42*s,2.8*s)));
     drawBox(mat4Mul(vp,m),m,dc,1);
-    // Engine deck
-    m=mat4Mul(mat4Trans(tx,0.85*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(0,0,1.5*s),mat4Scale(2.2*s,0.2*s,1.0*s))));
+    m=mat4Mul(mat4Trans(tx,0.86*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(0,0,-1.9*s),mat4Mul(mat4RotX(-0.48),mat4Scale(2.35*s,0.36*s,0.85*s)))));
     drawBox(mat4Mul(vp,m),m,dc,1);
+
+    // Rear engine deck
+    m=mat4Mul(mat4Trans(tx,0.9*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(0,0,1.5*s),mat4Scale(2.2*s,0.18*s,1.35*s))));
+    drawBox(mat4Mul(vp,m),m,dc,1);
+
     // Left track
-    m=mat4Mul(mat4Trans(tx,0.35*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.45*s,0,0),mat4Scale(0.45*s,0.55*s,3.5*s))));
+    m=mat4Mul(mat4Trans(tx,0.3*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.52*s,0,0),mat4Scale(0.5*s,0.55*s,3.7*s))));
     drawBox(mat4Mul(vp,m),m,trackColor,1);
     // Right track
-    m=mat4Mul(mat4Trans(tx,0.35*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.45*s,0,0),mat4Scale(0.45*s,0.55*s,3.5*s))));
+    m=mat4Mul(mat4Trans(tx,0.3*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.52*s,0,0),mat4Scale(0.5*s,0.55*s,3.7*s))));
     drawBox(mat4Mul(vp,m),m,trackColor,1);
+
+    // Road wheels (left/right)
+    for(let i=0;i<6;i++){
+      const z=-1.45*s+i*0.58*s;
+      m=mat4Mul(mat4Trans(tx,0.2*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.52*s,0,z),mat4Scale(0.22*s,0.22*s,0.22*s))));
+      drawBox(mat4Mul(vp,m),m,rubber,1);
+      m=mat4Mul(mat4Trans(tx,0.2*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.52*s,0,z),mat4Scale(0.22*s,0.22*s,0.22*s))));
+      drawBox(mat4Mul(vp,m),m,rubber,1);
+    }
+
+    // Drive sprocket + idler
+    for(const z of [-1.9*s,1.9*s]){
+      m=mat4Mul(mat4Trans(tx,0.26*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.52*s,0,z),mat4Scale(0.3*s,0.3*s,0.3*s))));
+      drawBox(mat4Mul(vp,m),m,steel,1);
+      m=mat4Mul(mat4Trans(tx,0.26*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.52*s,0,z),mat4Scale(0.3*s,0.3*s,0.3*s))));
+      drawBox(mat4Mul(vp,m),m,steel,1);
+    }
+
     // Left skirt
-    m=mat4Mul(mat4Trans(tx,0.55*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.7*s,0,0),mat4Scale(0.06*s,0.5*s,3.0*s))));
+    m=mat4Mul(mat4Trans(tx,0.54*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(-1.75*s,0,0),mat4Scale(0.08*s,0.44*s,3.15*s))));
     drawBox(mat4Mul(vp,m),m,bodyColor,1);
     // Right skirt
-    m=mat4Mul(mat4Trans(tx,0.55*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.7*s,0,0),mat4Scale(0.06*s,0.5*s,3.0*s))));
+    m=mat4Mul(mat4Trans(tx,0.54*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4Trans(1.75*s,0,0),mat4Scale(0.08*s,0.44*s,3.15*s))));
     drawBox(mat4Mul(vp,m),m,bodyColor,1);
+
+    // Turret ring
+    m=mat4Mul(mat4Trans(tx,1.08*s,tz),mat4Mul(mat4RotY(bodyAngle),mat4Scale(1.55*s,0.16*s,1.55*s)));
+    drawBox(mat4Mul(vp,m),m,dc,1);
+
     // Turret
-    m=mat4Mul(mat4Trans(tx,1.35*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Scale(1.8*s,0.65*s,2.0*s)));
+    m=mat4Mul(mat4Trans(tx,1.35*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Scale(1.75*s,0.6*s,1.95*s)));
     drawBox(mat4Mul(vp,m),m,turretColor,1);
-    // Turret front armor
-    m=mat4Mul(mat4Trans(tx,1.35*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-0.8*s),mat4Scale(1.6*s,0.55*s,0.5*s))));
+
+    // Turret cheek/front armor
+    m=mat4Mul(mat4Trans(tx,1.34*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-0.95*s),mat4Scale(1.45*s,0.5*s,0.55*s))));
     drawBox(mat4Mul(vp,m),m,turretColor,1);
+
+    // Turret bustle
+    m=mat4Mul(mat4Trans(tx,1.34*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,1.0*s),mat4Scale(1.15*s,0.45*s,0.9*s))));
+    drawBox(mat4Mul(vp,m),m,dc,1);
+
     // Mantlet
     m=mat4Mul(mat4Trans(tx,1.35*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-1.1*s),mat4Scale(0.9*s,0.5*s,0.3*s))));
     drawBox(mat4Mul(vp,m),m,mc,1);
+
     // Barrel(s)
     if(barrelCount===2){
       for(const off of [0.25*s,-0.25*s]){
-        m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(off,0,-2.8*s),mat4Scale(0.16*s,0.16*s,3.0*s))));
+        // recoil sleeve
+        m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(off,0,-1.9*s),mat4Scale(0.22*s,0.22*s,0.9*s))));
+        drawBox(mat4Mul(vp,m),m,[0.19,0.19,0.2],1);
+        m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(off,0,-2.95*s),mat4Scale(0.14*s,0.14*s,3.0*s))));
         drawBox(mat4Mul(vp,m),m,mc,1);
-        m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(off,0,-4.4*s),mat4Scale(0.24*s,0.24*s,0.25*s))));
+        m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(off,0,-4.6*s),mat4Scale(0.24*s,0.24*s,0.3*s))));
         drawBox(mat4Mul(vp,m),m,[0.2,0.2,0.2],1);
       }
     }else{
-      m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-2.8*s),mat4Scale(0.2*s,0.2*s,3.0*s))));
+      // recoil sleeve
+      m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-1.95*s),mat4Scale(0.3*s,0.3*s,0.95*s))));
+      drawBox(mat4Mul(vp,m),m,[0.19,0.19,0.2],1);
+      m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-3.0*s),mat4Scale(0.18*s,0.18*s,3.1*s))));
       drawBox(mat4Mul(vp,m),m,mc,1);
-      m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-4.4*s),mat4Scale(0.3*s,0.3*s,0.25*s))));
+      m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0,0,-4.65*s),mat4Scale(0.3*s,0.3*s,0.32*s))));
       drawBox(mat4Mul(vp,m),m,[0.2,0.2,0.2],1);
     }
+
     // Cupola
     m=mat4Mul(mat4Trans(tx,1.8*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(-0.35*s,0,0.2*s),mat4Scale(0.35*s,0.15*s,0.35*s))));
     drawBox(mat4Mul(vp,m),m,mc,1);
+
+    // Commander MG
+    m=mat4Mul(mat4Trans(tx,1.95*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0.15*s,0,-0.35*s),mat4Scale(0.09*s,0.09*s,0.55*s))));
+    drawBox(mat4Mul(vp,m),m,steel,1);
+
+    // Smoke launchers (left/right turret cheeks)
+    m=mat4Mul(mat4Trans(tx,1.47*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(-0.95*s,0,-0.45*s),mat4Scale(0.18*s,0.16*s,0.45*s))));
+    drawBox(mat4Mul(vp,m),m,steel,1);
+    m=mat4Mul(mat4Trans(tx,1.47*s,tz),mat4Mul(mat4RotY(turretAngle),mat4Mul(mat4Trans(0.95*s,0,-0.45*s),mat4Scale(0.18*s,0.16*s,0.45*s))));
+    drawBox(mat4Mul(vp,m),m,steel,1);
   }
 
   // Player tank
   if(gameRunning||explosions.some(e=>e.t<0.5)){
     if(player.hp>0){
       drawTank(player.x,player.z,player.angle,player.turretAngle,
-        playerBoss?[0.4,0.45,0.15]:[0.28,0.33,0.2],
-        playerBoss?[0.35,0.4,0.12]:[0.25,0.3,0.18],
-        [0.12,0.12,0.1],TANK_CLASSES[playerClass].barrels,playerBoss?1.5:1);
+        [0.28,0.33,0.2],
+        [0.25,0.3,0.18],
+        [0.12,0.12,0.1],TANK_CLASSES[playerClass].barrels,1);
     }
   }
 
   // Ally tanks (green team)
   for(const a of allies){
     drawTank(a.x,a.z,a.angle,a.turretAngle,
-      [0.2,0.38,0.15],[0.18,0.35,0.13],[0.1,0.12,0.08],TANK_CLASSES[a.tankClass||'normal'].barrels,a.boss?1.5:1);
+      [0.2,0.38,0.15],[0.18,0.35,0.13],[0.1,0.12,0.08],TANK_CLASSES[a.tankClass||'normal'].barrels,1);
   }
 
   // Enemy tanks (red team)
   for(const e of enemies){
     drawTank(e.x,e.z,e.angle,e.turretAngle,
-      [0.42,0.22,0.15],[0.38,0.2,0.13],[0.15,0.1,0.08],TANK_CLASSES[e.tankClass||'normal'].barrels,e.boss?1.5:1);
+      [0.42,0.22,0.15],[0.38,0.2,0.13],[0.15,0.1,0.08],TANK_CLASSES[e.tankClass||'normal'].barrels,1);
   }
 
   // HP bars for all tanks
@@ -1586,7 +1592,7 @@ function render(){
   gl.disable(gl.CULL_FACE);
   function drawHpBar(tank,emptyCol){
     const hpPct=tank.hp/tank.maxHp;
-    const bs=tank.boss?1.5:1;
+    const bs=1;
     const barW=3.0*bs,barH=0.35*bs,barY=3.0*bs;
     m=mat4Mul(mat4Trans(tank.x,barY,tank.z),mat4Mul(mat4RotY(camYaw),mat4Scale(barW+0.2,barH+0.15,0.01)));
     drawBox(mat4Mul(vp,m),m,[0.05,0.05,0.05],0);
@@ -1717,6 +1723,7 @@ function startGame(){
   osc.connect(g);g.connect(ctx.destination);
   osc.start();osc.stop(ctx.currentTime+0.01);
 
+  // Start game: reset state and hide start screen
   resetGame();
   gameRunning=true;
   document.getElementById('startScreen').style.display='none';
@@ -1726,8 +1733,8 @@ function startGame(){
   player.hp=player.maxHp;
 }
 
-document.getElementById('startBtn').addEventListener('click',(e)=>{e.preventDefault();startGame();});
 document.getElementById('startBtn').addEventListener('touchend',(e)=>{e.preventDefault();startGame();});
+document.getElementById('startBtn').addEventListener('click',(e)=>{e.preventDefault();startGame();});
 document.getElementById('restartBtn').addEventListener('click',(e)=>{e.preventDefault();startGame();});
 document.getElementById('restartBtn').addEventListener('touchend',(e)=>{e.preventDefault();startGame();});
 

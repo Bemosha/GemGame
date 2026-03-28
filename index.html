@@ -592,6 +592,55 @@ function makeBox(){
 }
 const box=makeBox();
 
+function makeCylinder(segments=20){
+  const verts=[];
+  const idx=[];
+  const h=0.5;
+
+  // Side
+  for(let i=0;i<=segments;i++){
+    const a=i/segments*Math.PI*2;
+    const x=Math.cos(a), z=Math.sin(a);
+    verts.push(x,-h,z, x,0,z);
+    verts.push(x, h,z, x,0,z);
+  }
+  for(let i=0;i<segments;i++){
+    const o=i*2;
+    idx.push(o,o+1,o+3, o,o+3,o+2);
+  }
+
+  // Top cap
+  const topCenter=verts.length/6;
+  verts.push(0,h,0, 0,1,0);
+  const topStart=verts.length/6;
+  for(let i=0;i<=segments;i++){
+    const a=i/segments*Math.PI*2;
+    const x=Math.cos(a), z=Math.sin(a);
+    verts.push(x,h,z, 0,1,0);
+  }
+  for(let i=0;i<segments;i++)idx.push(topCenter,topStart+i,topStart+i+1);
+
+  // Bottom cap
+  const botCenter=verts.length/6;
+  verts.push(0,-h,0, 0,-1,0);
+  const botStart=verts.length/6;
+  for(let i=0;i<=segments;i++){
+    const a=i/segments*Math.PI*2;
+    const x=Math.cos(a), z=Math.sin(a);
+    verts.push(x,-h,z, 0,-1,0);
+  }
+  for(let i=0;i<segments;i++)idx.push(botCenter,botStart+i+1,botStart+i);
+
+  const vbo=gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,vbo);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.STATIC_DRAW);
+  const ebo=gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ebo);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
+  return{vbo,ebo,count:idx.length};
+}
+const cyl=makeCylinder(20);
+
 function drawBox(mvp,model,color,fog,emissive){
   gl.bindBuffer(gl.ARRAY_BUFFER,box.vbo);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,box.ebo);
@@ -606,6 +655,22 @@ function drawBox(mvp,model,color,fog,emissive){
   gl.uniform1f(uFog,fog===undefined?1:fog);
   gl.uniform1f(uEmissive,emissive===undefined?0:emissive);
   gl.drawElements(gl.TRIANGLES,box.count,gl.UNSIGNED_SHORT,0);
+}
+
+function drawCylinder(mvp,model,color,fog,emissive){
+  gl.bindBuffer(gl.ARRAY_BUFFER,cyl.vbo);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,cyl.ebo);
+  gl.enableVertexAttribArray(aPos);
+  gl.enableVertexAttribArray(aNorm);
+  gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,24,0);
+  gl.vertexAttribPointer(aNorm,3,gl.FLOAT,false,24,12);
+  gl.uniformMatrix4fv(uMVP,false,mvp);
+  gl.uniformMatrix4fv(uModel,false,model);
+  gl.uniform3fv(uColor,color);
+  gl.uniform3fv(uLightDir,[0.4,0.8,0.3]);
+  gl.uniform1f(uFog,fog===undefined?1:fog);
+  gl.uniform1f(uEmissive,emissive===undefined?0:emissive);
+  gl.drawElements(gl.TRIANGLES,cyl.count,gl.UNSIGNED_SHORT,0);
 }
 
 // ===== Mat4 (minimal) =====
@@ -648,7 +713,7 @@ const ENEMY_TEAM_SIZE=5;
 const ALLY_TEAM_SIZE=5;
 
 // Player
-let player={x:0,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0,rotSpeed:0,ramCd:0,armorFront:1.2,armorSide:0.9,armorRear:0.7,vel:0,turnVel:0,recoil:0};
+let player={x:0,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0,rotSpeed:0,ramCd:0,armorFront:1.0,armorSide:0.75,armorRear:0.55,vel:0,turnVel:0,recoil:0};
 // Teams
 let allies=[];  // green team (player's team)
 let enemies=[]; // red team
@@ -670,28 +735,65 @@ let rocks=[];
 let grassPatches=[];
 let terrainMounds=[];
 let groundScars=[];
+let bridges=[];
+let trenches=[];
 
 function sampleGroundHeight(x,z){
   let h=0;
-  // Мягкие земляные кочки
+  // Квадратные земляные кочки
   for(const m of terrainMounds){
-    const dx=(x-m.x)/Math.max(0.8,m.sx*0.55);
-    const dz=(z-m.z)/Math.max(0.8,m.sz*0.55);
-    const d2=dx*dx+dz*dz;
-    if(d2<1){
-      const w=1-d2;
+    const dx=Math.abs((x-m.x)/Math.max(0.8,m.sx*0.55));
+    const dz=Math.abs((z-m.z)/Math.max(0.8,m.sz*0.55));
+    // Квадратная маска (по max), вместо круглой (по сумме квадратов)
+    const q=Math.max(dx,dz);
+    if(q<1){
+      const w=1-q;
       h+=m.h*w*w;
     }
   }
   // Низкие/средние камни тоже дают «бугор» для качки,
-  // но это только высота для наклона, не жёсткая коллизия.
+  // и тоже считаются квадратными, как и земляные кочки.
   for(const r of rocks){
-    const dx=(x-r.x)/Math.max(0.55,r.sx*0.7);
-    const dz=(z-r.z)/Math.max(0.55,r.sz*0.7);
-    const d2=dx*dx+dz*dz;
-    if(d2<1){
-      const w=1-d2;
+    const dx=Math.abs((x-r.x)/Math.max(0.55,r.sx*0.7));
+    const dz=Math.abs((z-r.z)/Math.max(0.55,r.sz*0.7));
+    const q=Math.max(dx,dz);
+    if(q<1){
+      const w=1-q;
       h+=Math.min(0.22,(r.sy||0)*0.6)*w*w;
+    }
+  }
+
+  // Противотанковые рвы / канавы (под мостами)
+  for(const tr of trenches){
+    const cr=Math.cos(tr.rot), sr=Math.sin(tr.rot);
+    const lx=(x-tr.x)*cr+(z-tr.z)*sr;
+    const lz=-(x-tr.x)*sr+(z-tr.z)*cr;
+    const dx=Math.abs(lx)/Math.max(0.6,tr.w*0.5);
+    const dz=Math.abs(lz)/Math.max(0.6,tr.len*0.5);
+    const q=Math.max(dx,dz);
+    if(q<1){
+      const w=1-q;
+      h-=tr.depth*w*w;
+    }
+  }
+
+  // Мосты (настил + плавные съезды), чтобы по ним можно было проезжать
+  for(const b of bridges){
+    const cr=Math.cos(b.rot), sr=Math.sin(b.rot);
+    const lx=(x-b.x)*cr+(z-b.z)*sr;
+    const lz=-(x-b.x)*sr+(z-b.z)*cr;
+    const ax=Math.abs(lx), az=Math.abs(lz);
+    const halfW=b.w*0.5;
+    const deckHalf=b.deckLen*0.5;
+    const fullHalf=b.len*0.5;
+    if(ax<=halfW){
+      if(az<=deckHalf){
+        h=Math.max(h,b.y);
+      }else if(az<=fullHalf){
+        const t=(az-deckHalf)/Math.max(0.001,fullHalf-deckHalf);
+        const rampH=b.y*(1-t);
+        h=Math.max(h,rampH);
+      }
     }
   }
 
@@ -763,7 +865,28 @@ function spawnObstacles(){
 }
 
 function spawnEnvironment(){
-  trees=[]; rocks=[]; grassPatches=[]; terrainMounds=[]; groundScars=[];
+  trees=[]; rocks=[]; grassPatches=[]; terrainMounds=[]; groundScars=[]; bridges=[]; trenches=[];
+
+  // Bridges + trenches
+  const bridgeCount=4;
+  for(let i=0;i<bridgeCount;i++){
+    const useX=i%2===0;
+    const rot=useX?0:Math.PI*0.5;
+    const x=useX?(Math.random()*2-1)*(WORLD*0.55):(Math.random()*2-1)*(WORLD*0.32);
+    const z=useX?(Math.random()*2-1)*(WORLD*0.32):(Math.random()*2-1)*(WORLD*0.55);
+    if(Math.hypot(x,z)<20){i--;continue;}
+    const len=22+Math.random()*12;
+    const w=6.0+Math.random()*2.4;
+    const deckLen=len*0.58;
+    const y=1.05+Math.random()*0.48;
+    const thick=0.26+Math.random()*0.08;
+    const railH=0.52+Math.random()*0.18;
+    const pierGap=4.8+Math.random()*1.8;
+    const woodTone=0.34+Math.random()*0.2;
+    const steelTone=0.18+Math.random()*0.16;
+    bridges.push({x,z,rot,len,w,deckLen,y,thick,railH,pierGap,woodTone,steelTone});
+    trenches.push({x,z,rot,len:len+12,w:w+8.5,depth:1.35+Math.random()*0.55});
+  }
 
   // Trees
   for(let i=0;i<70;i++){
@@ -814,16 +937,17 @@ function spawnEnvironment(){
     });
   }
 
-  // Soft terrain mounds (very low relief to make ground less flat)
+  // Square terrain mounds (very low relief to make ground less flat)
   for(let i=0;i<90;i++){
     const x=(Math.random()-0.5)*WORLD*1.9;
     const z=(Math.random()-0.5)*WORLD*1.9;
+    const s=2.0+Math.random()*7.0;
     terrainMounds.push({
       x,z,
-      sx:2.0+Math.random()*7.0,
-      sz:2.0+Math.random()*7.0,
+      sx:s,
+      sz:s,
       h:0.03+Math.random()*0.08,
-      rot:Math.random()*Math.PI,
+      rot:0,
       tone:Math.random()
     });
   }
@@ -840,6 +964,19 @@ function spawnEnvironment(){
       dark:0.18+Math.random()*0.18
     });
   }
+
+  // Расчистка объектов в зоне мостов/рвов
+  function insideRect(px,pz,cx,cz,rot,hw,hl){
+    const cr=Math.cos(rot), sr=Math.sin(rot);
+    const lx=(px-cx)*cr+(pz-cz)*sr;
+    const lz=-(px-cx)*sr+(pz-cz)*cr;
+    return Math.abs(lx)<=hw&&Math.abs(lz)<=hl;
+  }
+
+  trees=trees.filter(t=>!bridges.some(b=>insideRect(t.x,t.z,b.x,b.z,b.rot,b.w*0.9,b.len*0.65)));
+  rocks=rocks.filter(r=>!bridges.some(b=>insideRect(r.x,r.z,b.x,b.z,b.rot,b.w*0.9,b.len*0.65)));
+  grassPatches=grassPatches.filter(g=>!bridges.some(b=>insideRect(g.x,g.z,b.x,b.z,b.rot,b.w*0.8,b.len*0.6)));
+  obstacles=obstacles.filter(o=>!bridges.some(b=>insideRect(o.x,o.z,b.x,b.z,b.rot,b.w*0.95,b.len*0.75)));
 }
 
 function spawnEnemy(){
@@ -966,7 +1103,9 @@ function applyUpgrades(){
 
 function resetGame(){
   // Игрок стартует на половине союзников
-  player={x:-WORLD*0.45,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0,ramCd:0,armorFront:1.2,armorSide:0.9,armorRear:0.75,vel:0,turnVel:0,recoil:0};
+  player={x:-WORLD*0.45,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0,ramCd:0,armorFront:1.0,armorSide:0.75,armorRear:0.55,vel:0,turnVel:0,recoil:0};
+  playerInvincible=false;
+  godModeInput='';
   enemies=[]; allies=[]; bullets=[]; explosions=[]; hitExplosions=[]; flashes=[]; trackDust=[];
   kills=0; lastChoiceKills=0; playerClass='normal';
   playerBoss=false; playerBossTimer=0;
@@ -1039,9 +1178,28 @@ function updateJoy(t){
 // Keyboard
 const keys={};
 let gamePaused=false;
+let playerInvincible=false;
+const GOD_MODE_CODE='12345678';
+let godModeInput='';
 
 window.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
+
+  if(/^\d$/.test(e.key)){
+    godModeInput=(godModeInput+e.key).slice(-GOD_MODE_CODE.length);
+    if(godModeInput===GOD_MODE_CODE){
+      playerInvincible=!playerInvincible;
+      if(playerInvincible){
+        player.hp=player.maxHp;
+        updateHpBar();
+        showCombatEvent('НЕУЯЗВИМОСТЬ: ON','#7CFC00');
+      }else{
+        showCombatEvent('НЕУЯЗВИМОСТЬ: OFF','#ffb347');
+      }
+      godModeInput='';
+    }
+  }
+
   if(e.key==='Escape'&&gameRunning){
     e.preventDefault();
     togglePause();
@@ -1075,9 +1233,14 @@ if(fireBtn){
 // Camera rotation via touch on canvas (not joystick area)
 let camTouchId=null,camLastX=0,camLastY=0;
 let camYaw=0,camPitch=0.4;
+// Фиксируем вертикальный угол: камера не двигается вверх/вниз
+const CAM_PITCH_MIN=0.4;
+const CAM_PITCH_MAX=0.4;
+function clampCamPitch(){
+  camPitch=Math.max(CAM_PITCH_MIN,Math.min(CAM_PITCH_MAX,camPitch));
+}
 let rightPointerMode=false;
 let rightAimUnlocking=false;
-let relockTimer=null;
 
 function setMousePointerVisible(v){
   const cur=v?'default':'';
@@ -1090,7 +1253,6 @@ function setMousePointerVisible(v){
 function setRightPointerMode(v){
   if(rightPointerMode===v)return;
   rightPointerMode=v;
-  if(relockTimer){clearTimeout(relockTimer);relockTimer=null;}
   setMousePointerVisible(v);
 
   if(v){
@@ -1099,12 +1261,8 @@ function setRightPointerMode(v){
       document.exitPointerLock();
     }
   }else if(gameRunning&&!gamePaused&&document.pointerLockElement!==canvas){
-    relockTimer=setTimeout(()=>{
-      if(!rightPointerMode&&gameRunning&&!gamePaused&&document.pointerLockElement!==canvas){
-        canvas.requestPointerLock();
-      }
-      relockTimer=null;
-    },80);
+    // Возвращаем pointer lock сразу, чтобы переключение было с 1 клика
+    canvas.requestPointerLock();
   }
 }
 
@@ -1119,6 +1277,8 @@ canvas.addEventListener('touchmove',(e)=>{
     if(t.identifier===camTouchId){
       const dx=t.clientX-camLastX,dy=t.clientY-camLastY;
       camYaw-=dx*0.005;
+      // Вертикальное движение отключено
+      clampCamPitch();
       camLastX=t.clientX;camLastY=t.clientY;
     }
   }
@@ -1149,9 +1309,13 @@ canvas.addEventListener('mousemove',(e)=>{
   if(gamePaused)return;
   if(document.pointerLockElement===canvas){
     camYaw-=e.movementX*0.003;
+    // Вертикальное движение отключено
+    clampCamPitch();
   }else if(rightPointerMode&&gameRunning){
     // Наведение от мышки при зажатой ПКМ
     camYaw-=e.movementX*0.003;
+    // Вертикальное движение отключено
+    clampCamPitch();
   }
 });
 document.addEventListener('pointerlockchange',()=>{
@@ -1173,12 +1337,12 @@ document.addEventListener('pointerlockchange',()=>{
 
 // ===== Tank Classes =====
 const TANK_CLASSES={
-  normal:{name:'Стандарт',fireRate:90,bulletSpeed:0.2,bulletLife:120,ammo:30,reload:180,barrels:1,dmg:1.0,pen:1.15,armorF:1.2,armorS:0.9,armorR:0.75},
-  double:{name:'Двустволка',fireRate:80,bulletSpeed:0.2,bulletLife:110,ammo:40,reload:200,barrels:2,dmg:0.85,pen:1.0,armorF:1.1,armorS:0.85,armorR:0.7},
-  sniper:{name:'Снайпер',fireRate:120,bulletSpeed:0.3,bulletLife:250,ammo:15,reload:150,barrels:1,dmg:1.35,pen:1.75,armorF:1.0,armorS:0.8,armorR:0.65},
-  machinegun:{name:'Пулемёт',fireRate:30,bulletSpeed:0.18,bulletLife:90,ammo:80,reload:240,barrels:1,dmg:0.42,pen:0.62,armorF:0.95,armorS:0.75,armorR:0.6},
-  heavy:{name:'Тяжёлый',fireRate:100,bulletSpeed:0.15,bulletLife:130,ammo:20,reload:200,barrels:1,bonusHp:8,dmg:1.2,pen:1.35,armorF:1.8,armorS:1.3,armorR:1.0},
-  rocket:{name:'Ракетчик',fireRate:140,bulletSpeed:0.22,bulletLife:180,ammo:10,reload:160,barrels:1,bonusDmg:3,dmg:1.8,pen:1.5,armorF:0.9,armorS:0.75,armorR:0.62}
+  normal:{name:'Стандарт',fireRate:90,bulletSpeed:0.2,bulletLife:120,ammo:30,reload:180,barrels:1,dmg:1.0,pen:1.15,armorF:0.9,armorS:0.65,armorR:0.45},
+  double:{name:'Двустволка',fireRate:80,bulletSpeed:0.2,bulletLife:110,ammo:40,reload:200,barrels:2,dmg:0.85,pen:1.0,armorF:0.85,armorS:0.6,armorR:0.42},
+  sniper:{name:'Снайпер',fireRate:120,bulletSpeed:0.3,bulletLife:250,ammo:15,reload:150,barrels:1,dmg:1.35,pen:1.75,armorF:0.75,armorS:0.55,armorR:0.4},
+  machinegun:{name:'Пулемёт',fireRate:30,bulletSpeed:0.18,bulletLife:90,ammo:80,reload:240,barrels:1,dmg:0.42,pen:0.62,armorF:0.7,armorS:0.5,armorR:0.35},
+  heavy:{name:'Тяжёлый',fireRate:100,bulletSpeed:0.15,bulletLife:130,ammo:20,reload:200,barrels:1,bonusHp:8,dmg:1.2,pen:1.35,armorF:1.2,armorS:0.9,armorR:0.65},
+  rocket:{name:'Ракетчик',fireRate:140,bulletSpeed:0.22,bulletLife:180,ammo:10,reload:160,barrels:1,bonusDmg:3,dmg:1.8,pen:1.5,armorF:0.7,armorS:0.5,armorR:0.35}
 };
 let playerClass='normal';
 let lastChoiceKills=0;
@@ -1206,6 +1370,36 @@ let reloadTimer=0;
 let RELOAD_TIME=180;
 const dt=1/60;
 let combatEventTimer=0;
+let playerHitCooldown=0;
+
+function segmentCircleHit(x1,z1,x2,z2,cx,cz,r){
+  const dx=x2-x1, dz=z2-z1;
+  const len2=dx*dx+dz*dz;
+  if(len2<1e-8){
+    const px=x1-cx,pz=z1-cz;
+    return px*px+pz*pz<=r*r;
+  }
+  let t=((cx-x1)*dx+(cz-z1)*dz)/len2;
+  t=Math.max(0,Math.min(1,t));
+  const qx=x1+dx*t, qz=z1+dz*t;
+  const ex=qx-cx, ez=qz-cz;
+  return ex*ex+ez*ez<=r*r;
+}
+
+function segmentAabbHit(x1,z1,x2,z2,cx,cz,hw,hd){
+  // Liang-Barsky in 2D against axis-aligned rectangle
+  const minX=cx-hw,maxX=cx+hw,minZ=cz-hd,maxZ=cz+hd;
+  const dx=x2-x1,dz=z2-z1;
+  let t0=0,t1=1;
+  function clip(p,q){
+    if(Math.abs(p)<1e-8)return q>=0;
+    const r=q/p;
+    if(p<0){if(r>t1)return false; if(r>t0)t0=r;}
+    else{if(r<t0)return false; if(r<t1)t1=r;}
+    return true;
+  }
+  return clip(-dx,x1-minX)&&clip(dx,maxX-x1)&&clip(-dz,z1-minZ)&&clip(dz,maxZ-z1);
+}
 
 function showCombatEvent(text,color){
   const el=document.getElementById('combatEvent');
@@ -1219,16 +1413,27 @@ function showCombatEvent(text,color){
 function update(){
   if(!gameRunning||gamePaused)return;
 
+  if(playerHitCooldown>0)playerHitCooldown--;
+
   if(player.ramCd>0)player.ramCd--;
   for(const e of enemies)if(e.ramCd>0)e.ramCd--;
   for(const a of allies)if(a.ramCd>0)a.ramCd--;
 
   function pushMuzzleFlash(x,z,dirX,dirZ){
-    flashes.push({x:x+dirX*0.45,y:1.45,z:z+dirZ*0.45,dx:dirX,dz:dirZ,t:0});
+    flashes.push({x:x+dirX*0.45,y:1.45,z:z+dirZ*0.45,dx:dirX,dz:dirZ,t:0,life:0.22});
   }
 
-  function pushHitExplosion(x,z){
-    hitExplosions.push({x:x,y:1.2,z:z,t:0});
+  function pushHitExplosion(x,z,power,kind,y){
+    const isImpact=(kind==='impact');
+    hitExplosions.push({
+      x:x,
+      y:y===undefined?1.2:y,
+      z:z,
+      t:0,
+      power:power===undefined?1:power,
+      kind:isImpact?'impact':'armor',
+      life:isImpact?0.72:0.5
+    });
   }
 
   function pushTrackDust(tank,intensity){
@@ -1385,6 +1590,8 @@ function update(){
   if(Math.abs(player.vel)>0.01||Math.abs(player.turnVel)>0.002){
     pushTrackDust(player,Math.abs(player.vel)*14+Math.abs(player.turnVel)*18);
   }
+  // Возврат ствола после выстрела (отдача)
+  player.recoil*=0.9;
 
   // HP regen
   if(UPGRADES.regen.val>0&&player.hp>0&&player.hp<player.maxHp){
@@ -1409,6 +1616,8 @@ function update(){
         const dmg=0.22*impact;
         a.hp-=dmg;
         b.hp-=dmg;
+        if(playerInvincible&&a===player)a.hp=player.maxHp;
+        if(playerInvincible&&b===player)b.hp=player.maxHp;
         a.ramCd=18;
         b.ramCd=18;
         const ix=(a.x+b.x)*0.5;
@@ -1419,8 +1628,10 @@ function update(){
           updateHpBar();
           vibrate(40);
         }
-        if(a.hp<=0){a.dead=true;a.ramKiller=b;}
-        if(b.hp<=0){b.dead=true;b.ramKiller=a;}
+        if(a===player&&playerInvincible){a.dead=false;a.hp=player.maxHp;}
+        else if(a.hp<=0){a.dead=true;a.ramKiller=b;}
+        if(b===player&&playerInvincible){b.dead=false;b.hp=player.maxHp;}
+        else if(b.hp<=0){b.dead=true;b.ramKiller=a;}
       }
     }
   }
@@ -1476,10 +1687,16 @@ function update(){
   }
 
   if(player.hp<=0||player.dead){
-    explosions.push({x:player.x,y:1,z:player.z,t:0});
-    if(player.ramKiller&&player.ramKiller!==player)upgradeAITank(player.ramKiller);
-    gameOver();
-    return;
+    if(playerInvincible){
+      player.hp=player.maxHp;
+      player.dead=false;
+      updateHpBar();
+    }else{
+      explosions.push({x:player.x,y:1,z:player.z,t:0});
+      if(player.ramKiller&&player.ramKiller!==player)upgradeAITank(player.ramKiller);
+      gameOver();
+      return;
+    }
   }
 
   // Player vs obstacles
@@ -1535,7 +1752,7 @@ function update(){
       pushMuzzleFlash(b.x,b.z,dirX,dirZ);
     }
     playRandomShootSound();
-    player.recoil=1;
+    player.recoil=1.8;
     vibrate(50);
     document.getElementById('ammoDisplay').textContent=ammo+' / '+MAX_AMMO;
     if(ammo<=0){
@@ -1566,30 +1783,47 @@ function update(){
     if(!target)return;
     const tx=target.x,tz=target.z;
 
-    // Move toward target
-    tank.moveTimer--;
-    if(tank.moveTimer<=0){
-      tank.moveTimer=60+Math.random()*120;
-      tank.angle=Math.atan2(tx-tank.x,tz-tank.z);
-    }
-    tank.x+=Math.sin(tank.angle)*tank.speed*dt;
-    tank.z+=Math.cos(tank.angle)*tank.speed*dt;
+    // Move toward target with turn-rate limit (корпус не "щёлкает" мгновенно)
+    const desiredHull=Math.atan2(tx-tank.x,tz-tank.z);
+    let hda=desiredHull-tank.angle;
+    while(hda>Math.PI)hda-=Math.PI*2;
+    while(hda<-Math.PI)hda+=Math.PI*2;
+    const maxHullTurn=0.022;
+    if(hda>maxHullTurn)hda=maxHullTurn;
+    if(hda<-maxHullTurn)hda=-maxHullTurn;
+    tank.angle+=hda;
+
+    // При сильном доворачивании скорость ниже — как у гусеничного танка
+    const turnSlow=Math.max(0.42,1-Math.abs(hda)*16.0);
+    tank.x+=Math.sin(tank.angle)*tank.speed*dt*turnSlow;
+    tank.z+=Math.cos(tank.angle)*tank.speed*dt*turnSlow;
     tank.x=Math.max(-WORLD,Math.min(WORLD,tank.x));
     tank.z=Math.max(-WORLD,Math.min(WORLD,tank.z));
     pushTrackDust(tank,0.45+tank.speed*0.08);
 
-    // Aim turret at target
-    tank.turretAngle=Math.atan2(tx-tank.x,tz-tank.z)+Math.PI;
+    // Aim turret at target with traverse speed limit (реалистичнее, без мгновенных поворотов)
+    const targetTurret=Math.atan2(tx-tank.x,tz-tank.z)+Math.PI;
+    let da=targetTurret-tank.turretAngle;
+    while(da>Math.PI)da-=Math.PI*2;
+    while(da<-Math.PI)da+=Math.PI*2;
+    const maxTraverse=0.05; // rad/frame
+    if(da>maxTraverse)da=maxTraverse;
+    if(da<-maxTraverse)da=-maxTraverse;
+    tank.turretAngle+=da;
 
     if(tank.reloadTimer>0){
       tank.reloadTimer--;
       if(tank.reloadTimer<=0)tank.ammo=tank.maxAmmo||20;
     }
 
-    // Shoot
+    // Shoot (предпочтительно когда башня уже наведена)
     const cls=TANK_CLASSES[tank.tankClass||'normal'];
     tank.shootTimer--;
-    if(tank.shootTimer<=0&&(!tank.reloadTimer)&&((tank.ammo||0)>0)){
+    let aimErr=targetTurret-tank.turretAngle;
+    while(aimErr>Math.PI)aimErr-=Math.PI*2;
+    while(aimErr<-Math.PI)aimErr+=Math.PI*2;
+    const aimed=Math.abs(aimErr)<0.24;
+    if(tank.shootTimer<=0&&(!tank.reloadTimer)&&((tank.ammo||0)>0)&&aimed){
       tank.shootTimer=cls.fireRate+Math.random()*30;
       const dirX=-Math.sin(tank.turretAngle);
       const dirZ=-Math.cos(tank.turretAngle);
@@ -1639,26 +1873,49 @@ function update(){
   // Bullets
   for(let i=bullets.length-1;i>=0;i--){
     const b=bullets[i];
+    const prevX=b.x, prevZ=b.z;
     b.x+=b.vx;b.z+=b.vz;b.life--;
     if(b.life<=0){bullets.splice(i,1);continue;}
 
     // Bullet hits obstacle
     let hitObs=false;
     for(const o of obstacles){
-      if(Math.abs(b.x-o.x)<o.w/2+0.2&&Math.abs(b.z-o.z)<o.d/2+0.2){
+      if(segmentAabbHit(prevX,prevZ,b.x,b.z,o.x,o.z,o.w/2+0.2,o.d/2+0.2)){
         hitObs=true;break;
       }
     }
+
+    // Rocks and tree trunks are solid for shells too
+    if(!hitObs){
+      for(const r of rocks){
+        if(segmentAabbHit(prevX,prevZ,b.x,b.z,r.x,r.z,r.sx*0.55,r.sz*0.55)){
+          hitObs=true;break;
+        }
+      }
+    }
+    if(!hitObs){
+      for(const t of trees){
+        const tr=t.w*1.75;
+        if(segmentCircleHit(prevX,prevZ,b.x,b.z,t.x,t.z,tr)){
+          hitObs=true;break;
+        }
+      }
+    }
+
     // Bullet hits world boundary
     if(Math.abs(b.x)>WORLD||Math.abs(b.z)>WORLD)hitObs=true;
-    if(hitObs){bullets.splice(i,1);continue;}
+    if(hitObs){
+      // Яркий и заметный мини-взрыв при попадании в текстуры/препятствия
+      pushHitExplosion(b.x,b.z,1.9,'impact',Math.max(0.55,b.y||1.2));
+      bullets.splice(i,1);
+      continue;
+    }
 
     // Player/ally bullets hit enemies
     if(b.owner==='player'||b.owner==='ally'){
       for(let j=enemies.length-1;j>=0;j--){
         const e=enemies[j];
-        const dx=b.x-e.x,dz=b.z-e.z;
-        if(dx*dx+dz*dz<4){
+        if(segmentCircleHit(prevX,prevZ,b.x,b.z,e.x,e.z,2.0)){
           pushHitExplosion(e.x,e.z);
           const hit=resolveShellHit(e,b);
           if(!hit.ricochet){
@@ -1698,20 +1955,30 @@ function update(){
     // Enemy bullets hit player and allies
     if(b.owner==='enemy'){
       // Hit player
-      const dx=b.x-player.x,dz=b.z-player.z;
-      if(dx*dx+dz*dz<3){
+      if(segmentCircleHit(prevX,prevZ,b.x,b.z,player.x,player.z,1.8)){
         bullets.splice(i,1);
         pushHitExplosion(player.x,player.z);
         const hit=resolveShellHit(player,b);
         if(!hit.ricochet){
-          player.hp-=hit.damage;
-          showCombatEvent('ТЕБЯ ПРОБИЛИ','#ff6b6b');
+          if(playerInvincible){
+            showCombatEvent('НЕУЯЗВИМОСТЬ','#7CFC00');
+          }else{
+            // Умеренный интервал между попаданиями, но без чрезмерной «неубиваемости».
+            if(playerHitCooldown<=0){
+              const dmg=Math.max(0.28,hit.damage*1.05);
+              player.hp-=dmg;
+              playerHitCooldown=6;
+              showCombatEvent('ТЕБЯ ПРОБИЛИ','#ff6b6b');
+            }else{
+              showCombatEvent('БРОНЯ СДЕРЖАЛА','#ffd166');
+            }
+          }
         }else{
           showCombatEvent('СНАРЯД ОТСКОЧИЛ','#7dd3fc');
         }
         updateHpBar();
         vibrate(200);
-        if(player.hp<=0){
+        if(player.hp<=0&&!playerInvincible){
           explosions.push({x:player.x,y:1,z:player.z,t:0});
           upgradeAITank(b.shooter);
           gameOver();
@@ -1722,8 +1989,7 @@ function update(){
       let hitAlly=false;
       for(let j=allies.length-1;j>=0;j--){
         const a=allies[j];
-        const adx=b.x-a.x,adz=b.z-a.z;
-        if(adx*adx+adz*adz<4){
+        if(segmentCircleHit(prevX,prevZ,b.x,b.z,a.x,a.z,2.0)){
           pushHitExplosion(a.x,a.z);
           const hit=resolveShellHit(a,b);
           if(!hit.ricochet)a.hp-=hit.damage;
@@ -1753,13 +2019,13 @@ function update(){
   // Mini hit explosions
   for(let i=hitExplosions.length-1;i>=0;i--){
     hitExplosions[i].t+=dt;
-    if(hitExplosions[i].t>0.5)hitExplosions.splice(i,1);
+    if(hitExplosions[i].t>(hitExplosions[i].life||0.5))hitExplosions.splice(i,1);
   }
 
   // Muzzle flashes
   for(let i=flashes.length-1;i>=0;i--){
     flashes[i].t+=dt;
-    if(flashes[i].t>0.1)flashes.splice(i,1);
+    if(flashes[i].t>(flashes[i].life||0.1))flashes.splice(i,1);
   }
 
   // Track dust particles
@@ -1964,12 +2230,13 @@ function render(){
 
   // Camera behind player
   const camDist=12;
-  const camH=5+camPitch*6;
-  const eyeX=player.x+Math.sin(camYaw)*camDist;
-  const eyeZ=player.z+Math.cos(camYaw)*camDist;
-  const view=mat4LookAt([eyeX,camH,eyeZ],[player.x,1,player.z],[0,1,0]);
+  const horizDist=camDist*Math.cos(camPitch);
+  const eyeY=1.9+camDist*Math.sin(camPitch);
+  const eyeX=player.x+Math.sin(camYaw)*horizDist;
+  const eyeZ=player.z+Math.cos(camYaw)*horizDist;
+  const view=mat4LookAt([eyeX,eyeY,eyeZ],[player.x,1.2,player.z],[0,1,0]);
   const vp=mat4Mul(proj,view);
-  gl.uniform3fv(uEyePos,[eyeX,camH,eyeZ]);
+  gl.uniform3fv(uEyePos,[eyeX,eyeY,eyeZ]);
 
   // Ground base + broad tone layers
   let m=mat4Mul(mat4Trans(0,-0.22,0),mat4Scale(WORLD*2,0.44,WORLD*2));
@@ -2001,6 +2268,91 @@ function render(){
     );
     const d=s.dark;
     drawBox(mat4Mul(vp,m),m,[d,d*0.92,d*0.78],1);
+  }
+
+  // Trenches / ditches (визуально под мостами)
+  for(const tr of trenches){
+    const tdx=tr.x-player.x,tdz=tr.z-player.z;
+    if(tdx*tdx+tdz*tdz>190*190)continue;
+    m=mat4Mul(
+      mat4Trans(tr.x,-tr.depth*0.45,tr.z),
+      mat4Mul(mat4RotY(tr.rot),mat4Scale(tr.w,tr.depth,tr.len))
+    );
+    drawBox(mat4Mul(vp,m),m,[0.11,0.1,0.09],1);
+  }
+
+  // Bridges (проезжаемые)
+  for(const b of bridges){
+    const bdx=b.x-player.x,bdz=b.z-player.z;
+    if(bdx*bdx+bdz*bdz>190*190)continue;
+    const thick=b.thick||0.28;
+    const railH=b.railH||0.58;
+    const deckHalf=b.deckLen*0.5;
+    const rampLen=(b.len-b.deckLen)*0.5;
+    const steelTone=b.steelTone||0.26;
+    const woodTone=b.woodTone||0.42;
+    const wood=[woodTone,woodTone*0.8,woodTone*0.52];
+    const steel=[steelTone,steelTone*1.02,steelTone*1.06];
+    const bridgeBase=mat4Mul(mat4Trans(b.x,b.y,b.z),mat4RotY(b.rot));
+    const rampAng=Math.atan2(b.y,Math.max(0.5,rampLen));
+
+    function drawBridgeLocal(lx,ly,lz,sx,sy,sz,col,rx){
+      const r=rx?mat4RotX(rx):mat4();
+      m=mat4Mul(bridgeBase,mat4Mul(mat4Trans(lx,ly,lz),mat4Mul(r,mat4Scale(sx,sy,sz))));
+      drawBox(mat4Mul(vp,m),m,col,1);
+    }
+
+    // Main deck slab
+    drawBridgeLocal(0,-thick*0.5,0,b.w,thick,b.deckLen,wood,0);
+
+    // Longitudinal steel girders under deck
+    for(const sx of [-1,1]){
+      drawBridgeLocal(sx*(b.w*0.32),-thick*0.95,0,0.26,thick*1.05,b.deckLen*0.98,steel,0);
+    }
+
+    // Planks on top (visual detail)
+    const plankGap=0.88;
+    const plankCount=Math.max(8,Math.floor(b.deckLen/plankGap));
+    for(let i=0;i<plankCount;i++){
+      const z=-deckHalf+(i+0.5)*(b.deckLen/plankCount);
+      const v=0.9+0.18*Math.sin(i*0.9+b.x*0.02);
+      drawBridgeLocal(0,-thick*0.08,z,b.w*0.92,0.035,b.deckLen/plankCount*0.78,[wood[0]*v,wood[1]*v,wood[2]*v],0);
+    }
+
+    // Ramps (with similar plank pattern)
+    for(const sgn of [-1,1]){
+      const rz=sgn*(deckHalf+rampLen*0.5);
+      drawBridgeLocal(0,-b.y*0.5-thick*0.4,rz,b.w*0.96,thick*0.78,rampLen*1.02,wood,sgn*rampAng);
+      const rpCount=Math.max(4,Math.floor(rampLen/0.85));
+      for(let i=0;i<rpCount;i++){
+        const lz=sgn*(deckHalf+(i+0.5)*(rampLen/rpCount));
+        const t=(i+0.5)/rpCount;
+        const ly=-t*b.y-thick*0.08;
+        drawBridgeLocal(0,ly,lz,b.w*0.9,0.03,rampLen/rpCount*0.76,[wood[0]*0.95,wood[1]*0.95,wood[2]*0.95],sgn*rampAng);
+      }
+    }
+
+    // Side rail posts and top rail
+    const postStep=1.6;
+    const postCount=Math.max(5,Math.floor(b.deckLen/postStep));
+    for(const sgn of [-1,1]){
+      for(let i=0;i<=postCount;i++){
+        const z=-deckHalf+i*(b.deckLen/postCount);
+        drawBridgeLocal(sgn*(b.w*0.5-0.08),railH*0.45,z,0.11,railH,0.11,steel,0);
+      }
+      drawBridgeLocal(sgn*(b.w*0.5-0.08),railH*0.92,0,0.08,0.08,b.deckLen*0.98,[steel[0]*1.12,steel[1]*1.12,steel[2]*1.12],0);
+      drawBridgeLocal(sgn*(b.w*0.5-0.13),railH*0.62,0,0.06,0.06,b.deckLen*0.98,[steel[0]*0.94,steel[1]*0.94,steel[2]*0.94],0);
+    }
+
+    // Support piers in trench
+    const gap=Math.max(3.8,b.pierGap||5.2);
+    const pierCount=Math.max(2,Math.floor(b.deckLen/gap));
+    for(let i=0;i<=pierCount;i++){
+      const z=-deckHalf+i*(b.deckLen/pierCount);
+      const pierH=Math.max(0.8,b.y+trenches[0]?.depth*0.2||1.2);
+      drawBridgeLocal(0,-pierH*0.5-thick*0.9,z,b.w*0.18,pierH,b.w*0.42,[0.24,0.24,0.25],0);
+      drawBridgeLocal(0,-thick*1.25,z,b.w*0.74,0.12,b.w*0.2,steel,0);
+    }
   }
 
   // Grass/dirt/mud patches
@@ -2040,30 +2392,39 @@ function render(){
   for(const r of rocks){
     const rdx=r.x-player.x,rdz=r.z-player.z;
     if(rdx*rdx+rdz*rdz>160*160)continue;
+    // Квадратные камни: 2 коробки разного масштаба
     m=mat4Mul(
-      mat4Trans(r.x,r.sy/2,r.z),
-      mat4Mul(mat4RotY(r.rot),mat4Scale(r.sx,r.sy,r.sz))
+      mat4Trans(r.x,r.sy*0.46,r.z),
+      mat4Mul(mat4RotY(r.rot),mat4Scale(r.sx*0.95,r.sy*0.9,r.sz*0.95))
     );
     drawBox(mat4Mul(vp,m),m,[r.c,r.c*0.95,r.c*0.9],1);
+    m=mat4Mul(
+      mat4Trans(r.x,r.sy*0.92,r.z),
+      mat4Mul(mat4RotY(r.rot+0.6),mat4Scale(r.sx*0.58,r.sy*0.48,r.sz*0.58))
+    );
+    drawBox(mat4Mul(vp,m),m,[r.c*1.03,r.c*0.99,r.c*0.94],1);
   }
 
   // Trees (trunk + layered crown)
   for(const t of trees){
     const tdx=t.x-player.x,tdz=t.z-player.z;
     if(tdx*tdx+tdz*tdz>170*170)continue;
-    // trunk
-    m=mat4Mul(mat4Trans(t.x,t.h*0.5,t.z),mat4Scale(t.w,t.h,t.w));
-    drawBox(mat4Mul(vp,m),m,[0.34,0.24,0.13],1);
+    // trunk (округлый)
+    m=mat4Mul(mat4Trans(t.x,t.h*0.5,t.z),mat4Scale(t.w*1.05,t.h,t.w*1.05));
+    drawCylinder(mat4Mul(vp,m),m,[0.34,0.24,0.13],1);
     // lower crown
     m=mat4Mul(mat4Trans(t.x,t.h+0.45,t.z),mat4Scale(t.crown,0.9,t.crown));
-    drawBox(mat4Mul(vp,m),m,[0.12,0.32+t.tone*0.2,0.12],1);
+    drawCylinder(mat4Mul(vp,m),m,[0.12,0.32+t.tone*0.2,0.12],1);
+    // mid crown
+    m=mat4Mul(mat4Trans(t.x,t.h+0.95,t.z),mat4Scale(t.crown*0.86,0.75,t.crown*0.86));
+    drawCylinder(mat4Mul(vp,m),m,[0.115,0.3+t.tone*0.19,0.115],1);
     // upper crown
-    m=mat4Mul(mat4Trans(t.x,t.h+1.2,t.z),mat4Scale(t.crown*0.75,0.8,t.crown*0.75));
-    drawBox(mat4Mul(vp,m),m,[0.11,0.28+t.tone*0.2,0.11],1);
+    m=mat4Mul(mat4Trans(t.x,t.h+1.35,t.z),mat4Scale(t.crown*0.68,0.62,t.crown*0.68));
+    drawCylinder(mat4Mul(vp,m),m,[0.11,0.28+t.tone*0.2,0.11],1);
   }
 
   // Draw tank (more realistic silhouette/details)
-  function drawTank(tx,tz,bodyAngle,turretAngle,bodyColor,turretColor,trackColor,barrelCount,scale,tiltPitch,tiltRoll){
+  function drawTank(tx,ty,tz,bodyAngle,turretAngle,bodyColor,turretColor,trackColor,barrelCount,scale,tiltPitch,tiltRoll){
     barrelCount=barrelCount||1;
     scale=scale||1;
     tiltPitch=tiltPitch||0;
@@ -2073,109 +2434,110 @@ function render(){
     const mc=[trackColor[0]*0.62,trackColor[1]*0.62,trackColor[2]*0.62];
     const steel=[0.22,0.23,0.24];
     const rubber=[0.08,0.08,0.08];
+    const selfRecoil=(tx===player.x&&tz===player.z)?player.recoil:0;
     const hullRot=mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4RotZ(tiltRoll),mat4RotX(tiltPitch)));
     const turretRot=mat4Mul(hullRot,mat4RotY(turretAngle-bodyAngle));
     let m;
 
     // Lower hull
-    m=mat4Mul(mat4Trans(tx,0.42*s,tz),mat4Mul(hullRot,mat4Scale(2.7*s,0.52*s,3.9*s)));
+    m=mat4Mul(mat4Trans(tx,ty+0.42*s,tz),mat4Mul(hullRot,mat4Scale(2.7*s,0.52*s,3.9*s)));
     drawBox(mat4Mul(vp,m),m,bodyColor,1);
 
     // Upper hull / glacis
-    m=mat4Mul(mat4Trans(tx,0.78*s,tz),mat4Mul(hullRot,mat4Scale(2.45*s,0.42*s,2.8*s)));
+    m=mat4Mul(mat4Trans(tx,ty+0.78*s,tz),mat4Mul(hullRot,mat4Scale(2.45*s,0.42*s,2.8*s)));
     drawBox(mat4Mul(vp,m),m,dc,1);
-    m=mat4Mul(mat4Trans(tx,0.86*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(0,0,-1.9*s),mat4Mul(mat4RotX(-0.48),mat4Scale(2.35*s,0.36*s,0.85*s)))));
+    m=mat4Mul(mat4Trans(tx,ty+0.86*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(0,0,-1.9*s),mat4Mul(mat4RotX(-0.48),mat4Scale(2.35*s,0.36*s,0.85*s)))));
     drawBox(mat4Mul(vp,m),m,dc,1);
 
     // Rear engine deck
-    m=mat4Mul(mat4Trans(tx,0.9*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(0,0,1.5*s),mat4Scale(2.2*s,0.18*s,1.35*s))));
+    m=mat4Mul(mat4Trans(tx,ty+0.9*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(0,0,1.5*s),mat4Scale(2.2*s,0.18*s,1.35*s))));
     drawBox(mat4Mul(vp,m),m,dc,1);
 
     // Left track
-    m=mat4Mul(mat4Trans(tx,0.3*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(-1.52*s,0,0),mat4Scale(0.5*s,0.55*s,3.7*s))));
+    m=mat4Mul(mat4Trans(tx,ty+0.3*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(-1.52*s,0,0),mat4Scale(0.5*s,0.55*s,3.7*s))));
     drawBox(mat4Mul(vp,m),m,trackColor,1);
     // Right track
-    m=mat4Mul(mat4Trans(tx,0.3*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(1.52*s,0,0),mat4Scale(0.5*s,0.55*s,3.7*s))));
+    m=mat4Mul(mat4Trans(tx,ty+0.3*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(1.52*s,0,0),mat4Scale(0.5*s,0.55*s,3.7*s))));
     drawBox(mat4Mul(vp,m),m,trackColor,1);
 
     // Road wheels (left/right)
     for(let i=0;i<6;i++){
       const z=-1.45*s+i*0.58*s;
-      m=mat4Mul(mat4Trans(tx,0.2*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(-1.52*s,0,z),mat4Scale(0.22*s,0.22*s,0.22*s))));
+      m=mat4Mul(mat4Trans(tx,ty+0.2*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(-1.52*s,0,z),mat4Scale(0.22*s,0.22*s,0.22*s))));
       drawBox(mat4Mul(vp,m),m,rubber,1);
-      m=mat4Mul(mat4Trans(tx,0.2*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(1.52*s,0,z),mat4Scale(0.22*s,0.22*s,0.22*s))));
+      m=mat4Mul(mat4Trans(tx,ty+0.2*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(1.52*s,0,z),mat4Scale(0.22*s,0.22*s,0.22*s))));
       drawBox(mat4Mul(vp,m),m,rubber,1);
     }
 
     // Drive sprocket + idler
     for(const z of [-1.9*s,1.9*s]){
-      m=mat4Mul(mat4Trans(tx,0.26*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(-1.52*s,0,z),mat4Scale(0.3*s,0.3*s,0.3*s))));
+      m=mat4Mul(mat4Trans(tx,ty+0.26*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(-1.52*s,0,z),mat4Scale(0.3*s,0.3*s,0.3*s))));
       drawBox(mat4Mul(vp,m),m,steel,1);
-      m=mat4Mul(mat4Trans(tx,0.26*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(1.52*s,0,z),mat4Scale(0.3*s,0.3*s,0.3*s))));
+      m=mat4Mul(mat4Trans(tx,ty+0.26*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(1.52*s,0,z),mat4Scale(0.3*s,0.3*s,0.3*s))));
       drawBox(mat4Mul(vp,m),m,steel,1);
     }
 
     // Left skirt
-    m=mat4Mul(mat4Trans(tx,0.54*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(-1.75*s,0,0),mat4Scale(0.08*s,0.44*s,3.15*s))));
+    m=mat4Mul(mat4Trans(tx,ty+0.54*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(-1.75*s,0,0),mat4Scale(0.08*s,0.44*s,3.15*s))));
     drawBox(mat4Mul(vp,m),m,bodyColor,1);
     // Right skirt
-    m=mat4Mul(mat4Trans(tx,0.54*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(1.75*s,0,0),mat4Scale(0.08*s,0.44*s,3.15*s))));
+    m=mat4Mul(mat4Trans(tx,ty+0.54*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(1.75*s,0,0),mat4Scale(0.08*s,0.44*s,3.15*s))));
     drawBox(mat4Mul(vp,m),m,bodyColor,1);
 
     // Turret ring
-    m=mat4Mul(mat4Trans(tx,1.08*s,tz),mat4Mul(hullRot,mat4Scale(1.55*s,0.16*s,1.55*s)));
+    m=mat4Mul(mat4Trans(tx,ty+1.08*s,tz),mat4Mul(hullRot,mat4Scale(1.55*s,0.16*s,1.55*s)));
     drawBox(mat4Mul(vp,m),m,dc,1);
 
     // Turret
-    m=mat4Mul(mat4Trans(tx,1.35*s,tz),mat4Mul(turretRot,mat4Scale(1.75*s,0.6*s,1.95*s)));
+    m=mat4Mul(mat4Trans(tx,ty+1.35*s,tz),mat4Mul(turretRot,mat4Scale(1.75*s,0.6*s,1.95*s)));
     drawBox(mat4Mul(vp,m),m,turretColor,1);
 
     // Turret cheek/front armor
-    m=mat4Mul(mat4Trans(tx,1.34*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,-0.95*s),mat4Scale(1.45*s,0.5*s,0.55*s))));
+    m=mat4Mul(mat4Trans(tx,ty+1.34*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,-0.95*s),mat4Scale(1.45*s,0.5*s,0.55*s))));
     drawBox(mat4Mul(vp,m),m,turretColor,1);
 
     // Turret bustle
-    m=mat4Mul(mat4Trans(tx,1.34*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,1.0*s),mat4Scale(1.15*s,0.45*s,0.9*s))));
+    m=mat4Mul(mat4Trans(tx,ty+1.34*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,1.0*s),mat4Scale(1.15*s,0.45*s,0.9*s))));
     drawBox(mat4Mul(vp,m),m,dc,1);
 
     // Mantlet
-    m=mat4Mul(mat4Trans(tx,1.35*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,-1.1*s),mat4Scale(0.9*s,0.5*s,0.3*s))));
+    m=mat4Mul(mat4Trans(tx,ty+1.35*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,-1.1*s),mat4Scale(0.9*s,0.5*s,0.3*s))));
     drawBox(mat4Mul(vp,m),m,mc,1);
 
     // Barrel(s)
     if(barrelCount===2){
       for(const off of [0.25*s,-0.25*s]){
         // recoil sleeve
-        m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(off,0,-1.9*s),mat4Scale(0.22*s,0.22*s,0.9*s))));
+        m=mat4Mul(mat4Trans(tx,ty+1.38*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(off,0,-1.9*s),mat4Scale(0.22*s,0.22*s,0.9*s))));
         drawBox(mat4Mul(vp,m),m,[0.19,0.19,0.2],1);
-        m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(off,0,-2.95*s),mat4Scale(0.14*s,0.14*s,3.0*s))));
+        m=mat4Mul(mat4Trans(tx,ty+1.38*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(off,0,-2.95*s),mat4Scale(0.14*s,0.14*s,3.0*s))));
         drawBox(mat4Mul(vp,m),m,mc,1);
-        m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(off,0,-4.6*s),mat4Scale(0.24*s,0.24*s,0.3*s))));
+        m=mat4Mul(mat4Trans(tx,ty+1.38*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(off,0,-4.6*s),mat4Scale(0.24*s,0.24*s,0.3*s))));
         drawBox(mat4Mul(vp,m),m,[0.2,0.2,0.2],1);
       }
     }else{
       // recoil sleeve
-      m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,-1.95*s),mat4Scale(0.3*s,0.3*s,0.95*s))));
+      m=mat4Mul(mat4Trans(tx,ty+1.38*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,-1.95*s),mat4Scale(0.3*s,0.3*s,0.95*s))));
       drawBox(mat4Mul(vp,m),m,[0.19,0.19,0.2],1);
-      const recoilShift=(tx===player.x&&tz===player.z?player.recoil*0.35:0);
-      m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,-3.0*s+recoilShift),mat4Scale(0.18*s,0.18*s,3.1*s))));
+      const recoilShift=selfRecoil*0.9;
+      m=mat4Mul(mat4Trans(tx,ty+1.38*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,-3.0*s+recoilShift),mat4Scale(0.18*s,0.18*s,3.1*s))));
       drawBox(mat4Mul(vp,m),m,mc,1);
-      m=mat4Mul(mat4Trans(tx,1.38*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,-4.65*s),mat4Scale(0.3*s,0.3*s,0.32*s))));
+      m=mat4Mul(mat4Trans(tx,ty+1.38*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,-4.65*s),mat4Scale(0.3*s,0.3*s,0.32*s))));
       drawBox(mat4Mul(vp,m),m,[0.2,0.2,0.2],1);
     }
 
     // Cupola
-    m=mat4Mul(mat4Trans(tx,1.8*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(-0.35*s,0,0.2*s),mat4Scale(0.35*s,0.15*s,0.35*s))));
+    m=mat4Mul(mat4Trans(tx,ty+1.8*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(-0.35*s,0,0.2*s),mat4Scale(0.35*s,0.15*s,0.35*s))));
     drawBox(mat4Mul(vp,m),m,mc,1);
 
     // Commander MG
-    m=mat4Mul(mat4Trans(tx,1.95*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0.15*s,0,-0.35*s),mat4Scale(0.09*s,0.09*s,0.55*s))));
+    m=mat4Mul(mat4Trans(tx,ty+1.95*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0.15*s,0,-0.35*s),mat4Scale(0.09*s,0.09*s,0.55*s))));
     drawBox(mat4Mul(vp,m),m,steel,1);
 
     // Smoke launchers (left/right turret cheeks)
-    m=mat4Mul(mat4Trans(tx,1.47*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(-0.95*s,0,-0.45*s),mat4Scale(0.18*s,0.16*s,0.45*s))));
+    m=mat4Mul(mat4Trans(tx,ty+1.47*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(-0.95*s,0,-0.45*s),mat4Scale(0.18*s,0.16*s,0.45*s))));
     drawBox(mat4Mul(vp,m),m,steel,1);
-    m=mat4Mul(mat4Trans(tx,1.47*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0.95*s,0,-0.45*s),mat4Scale(0.18*s,0.16*s,0.45*s))));
+    m=mat4Mul(mat4Trans(tx,ty+1.47*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0.95*s,0,-0.45*s),mat4Scale(0.18*s,0.16*s,0.45*s))));
     drawBox(mat4Mul(vp,m),m,steel,1);
   }
 
@@ -2183,7 +2545,7 @@ function render(){
   if(gameRunning||explosions.some(e=>e.t<0.5)){
     if(player.hp>0){
       const pt=getTankTilt(player.x,player.z,player.angle);
-      drawTank(player.x,player.z,player.angle,player.turretAngle,
+      drawTank(player.x,sampleGroundHeight(player.x,player.z),player.z,player.angle,player.turretAngle,
         [0.28,0.33,0.2],
         [0.25,0.3,0.18],
         [0.12,0.12,0.1],TANK_CLASSES[playerClass].barrels,1,pt.pitch,pt.roll);
@@ -2193,14 +2555,14 @@ function render(){
   // Ally tanks (green team)
   for(const a of allies){
     const at=getTankTilt(a.x,a.z,a.angle);
-    drawTank(a.x,a.z,a.angle,a.turretAngle,
+    drawTank(a.x,sampleGroundHeight(a.x,a.z),a.z,a.angle,a.turretAngle,
       [0.2,0.38,0.15],[0.18,0.35,0.13],[0.1,0.12,0.08],TANK_CLASSES[a.tankClass||'normal'].barrels,1,at.pitch,at.roll);
   }
 
   // Enemy tanks (red team)
   for(const e of enemies){
     const et=getTankTilt(e.x,e.z,e.angle);
-    drawTank(e.x,e.z,e.angle,e.turretAngle,
+    drawTank(e.x,sampleGroundHeight(e.x,e.z),e.z,e.angle,e.turretAngle,
       [0.42,0.22,0.15],[0.38,0.2,0.13],[0.15,0.1,0.08],TANK_CLASSES[e.tankClass||'normal'].barrels,1,et.pitch,et.roll);
   }
 
@@ -2209,17 +2571,18 @@ function render(){
   gl.disable(gl.CULL_FACE);
   function drawHpBar(tank,emptyCol){
     const hpPct=tank.hp/tank.maxHp;
+    const gy=sampleGroundHeight(tank.x,tank.z);
     const bs=1;
     const barW=3.0*bs,barH=0.35*bs,barY=3.0*bs;
-    m=mat4Mul(mat4Trans(tank.x,barY,tank.z),mat4Mul(mat4RotY(camYaw),mat4Scale(barW+0.2,barH+0.15,0.01)));
+    m=mat4Mul(mat4Trans(tank.x,gy+barY,tank.z),mat4Mul(mat4RotY(camYaw),mat4Scale(barW+0.2,barH+0.15,0.01)));
     drawBox(mat4Mul(vp,m),m,[0.05,0.05,0.05],0);
-    m=mat4Mul(mat4Trans(tank.x,barY,tank.z),mat4Mul(mat4RotY(camYaw),mat4Scale(barW,barH,0.01)));
+    m=mat4Mul(mat4Trans(tank.x,gy+barY,tank.z),mat4Mul(mat4RotY(camYaw),mat4Scale(barW,barH,0.01)));
     drawBox(mat4Mul(vp,m),m,emptyCol,0);
     if(hpPct>0.01){
       const fillW=barW*hpPct;
       const hpColor=hpPct>0.6?[0.15,0.9,0.15]:hpPct>0.3?[1.0,0.8,0.1]:[1.0,0.15,0.15];
       const shiftX=(fillW-barW)/2;
-      m=mat4Mul(mat4Trans(tank.x,barY,tank.z),mat4Mul(mat4RotY(camYaw),mat4Mul(mat4Trans(shiftX,0,0),mat4Scale(fillW,barH,0.01))));
+      m=mat4Mul(mat4Trans(tank.x,gy+barY,tank.z),mat4Mul(mat4RotY(camYaw),mat4Mul(mat4Trans(shiftX,0,0),mat4Scale(fillW,barH,0.01))));
       drawBox(mat4Mul(vp,m),m,hpColor,0);
     }
   }
@@ -2246,12 +2609,17 @@ function render(){
 
   // Muzzle flashes
   for(const f of flashes){
-    const p=1-f.t/0.1;
+    const p=1-f.t/(f.life||0.1);
     const fx=f.x+f.dx*(f.t*6.0);
     const fz=f.z+f.dz*(f.t*6.0);
-    const fs=0.35*p+0.05;
+    const fs=0.75*p+0.12;
     m=mat4Mul(mat4Trans(fx,f.y,fz),mat4Scale(fs,fs*0.75,fs));
     drawBox(mat4Mul(vp,m),m,[1.0,0.7,0.2],0,1.0*p);
+
+    // Дым от выстрела
+    const sm=0.45+f.t*2.1;
+    m=mat4Mul(mat4Trans(fx-f.dx*0.5,f.y+0.15+f.t*0.5,fz-f.dz*0.5),mat4Scale(sm,sm*0.6,sm));
+    drawBox(mat4Mul(vp,m),m,[0.25*p,0.25*p,0.25*p],0,0.03);
   }
 
   // Explosions
@@ -2326,34 +2694,50 @@ function render(){
     }
   }
 
-  // Mini hit explosions (armor hit: flash + sparks + small smoke)
+  // Mini hit explosions (armor hit / texture impact)
   for(const h of hitExplosions){
     const t=h.t;
-    const flash=Math.max(0,1-t/0.14);
-    const sparks=Math.max(0,1-t/0.35);
-    const smoke=Math.max(0,1-t/0.5);
+    const impact=h.kind==='impact';
+    const p=h.power||1;
+    const flash=Math.max(0,1-t/(impact?0.2:0.14));
+    const sparks=Math.max(0,1-t/(impact?0.52:0.35));
+    const smoke=Math.max(0,1-t/(impact?0.72:0.5));
 
     if(flash>0){
-      const s=0.7+t*4.5;
+      const s=(impact?1.15:0.7)*p+t*(impact?5.8:4.5);
       m=mat4Mul(mat4Trans(h.x,h.y+0.7+t*1.5,h.z),mat4Scale(s,s,s));
-      drawBox(mat4Mul(vp,m),m,[1.0*flash,0.85*flash,0.5*flash],0,1.2*flash);
+      const c=impact?[1.0*flash,0.92*flash,0.62*flash]:[1.0*flash,0.85*flash,0.5*flash];
+      drawBox(mat4Mul(vp,m),m,c,0,(impact?1.85:1.2)*flash);
     }
 
-    for(let k=0;k<8;k++){
+    for(let k=0;k<(impact?13:8);k++){
       const a=k*0.78+h.x*0.12;
-      const r=0.35+t*(2.2+(k%3)*0.4);
+      const r=(impact?0.55:0.35)*p+t*((impact?3.0:2.2)+(k%3)*0.4);
       const px=h.x+Math.cos(a)*r;
       const pz=h.z+Math.sin(a)*r;
-      const py=h.y+0.35+t*(1.2+(k%2)*0.5)-2.8*t*t;
-      const ps=(0.12+0.08*(1-(k%3)/3))*sparks;
+      const py=h.y+0.35+t*((impact?1.6:1.2)+(k%2)*0.5)-2.8*t*t;
+      const ps=(impact?0.16:0.12+(0.08*(1-(k%3)/3)))*sparks;
       if(ps<=0||py<0.05)continue;
       m=mat4Mul(mat4Trans(px,py,pz),mat4Scale(ps,ps,ps));
-      drawBox(mat4Mul(vp,m),m,[1.0*sparks,0.55*sparks,0.12*sparks],0,0.95*sparks);
+      const sc=impact?[1.0*sparks,0.72*sparks,0.2*sparks]:[1.0*sparks,0.55*sparks,0.12*sparks];
+      drawBox(mat4Mul(vp,m),m,sc,0,(impact?1.3:0.95)*sparks);
     }
 
-    const puff=0.35+(1-smoke)*1.0;
+    const puff=(impact?0.58:0.35)+(1-smoke)*(impact?1.25:1.0);
     m=mat4Mul(mat4Trans(h.x,h.y+0.55+t*1.0,h.z),mat4Scale(puff,puff,puff));
-    drawBox(mat4Mul(vp,m),m,[0.16*smoke,0.16*smoke,0.16*smoke],0,0.01);
+    const pc=impact?[0.22*smoke,0.2*smoke,0.18*smoke]:[0.16*smoke,0.16*smoke,0.16*smoke];
+    drawBox(mat4Mul(vp,m),m,pc,0,impact?0.04:0.01);
+
+    // Дополнительное яркое кольцо, чтобы попадание в текстуру было хорошо видно
+    if(impact){
+      const ring=Math.max(0,1-t/0.28);
+      if(ring>0){
+        const rs=0.9+t*3.2;
+        const ry=0.18+t*0.25;
+        m=mat4Mul(mat4Trans(h.x,h.y+ry,h.z),mat4Scale(rs,0.08,rs));
+        drawBox(mat4Mul(vp,m),m,[1.0*ring,0.58*ring,0.16*ring],0,1.25*ring);
+      }
+    }
   }
 
   // Clouds (simple cubes in sky)

@@ -215,8 +215,23 @@ const canvas = document.getElementById('c');
 const gl = canvas.getContext('webgl', {antialias:true, alpha:false});
 if(!gl){alert('WebGL не поддерживается');throw new Error('no webgl')}
 
+const IS_MOBILE=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+const PERF={
+  renderScale:IS_MOBILE?0.72:1,
+  envMul:IS_MOBILE?0.55:1,
+  cloudCount:IS_MOBILE?7:15,
+  maxBullets:IS_MOBILE?180:320,
+  maxDust:IS_MOBILE?140:320,
+  maxHitFx:IS_MOBILE?80:180,
+  maxExplosions:IS_MOBILE?18:40
+};
+
 function resize(){
-  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  const scale=PERF.renderScale;
+  canvas.width = Math.max(1,Math.floor(window.innerWidth*scale));
+  canvas.height = Math.max(1,Math.floor(window.innerHeight*scale));
+  canvas.style.width=window.innerWidth+'px';
+  canvas.style.height=window.innerHeight+'px';
   gl.viewport(0,0,canvas.width,canvas.height);
 }
 window.addEventListener('resize',resize); resize();
@@ -852,7 +867,8 @@ function getTankTilt(x,z,angle){
 
 function spawnObstacles(){
   obstacles=[];
-  for(let i=0;i<20;i++){
+  const obstacleCount=Math.max(10,Math.floor(20*PERF.envMul));
+  for(let i=0;i<obstacleCount;i++){
     obstacles.push({
       x:(Math.random()-0.5)*WORLD*1.6,
       z:(Math.random()-0.5)*WORLD*1.6,
@@ -866,6 +882,7 @@ function spawnObstacles(){
 
 function spawnEnvironment(){
   trees=[]; rocks=[]; grassPatches=[]; terrainMounds=[]; groundScars=[]; bridges=[]; trenches=[];
+  const em=PERF.envMul;
 
   // Bridges + trenches
   const bridgeCount=4;
@@ -889,7 +906,7 @@ function spawnEnvironment(){
   }
 
   // Trees
-  for(let i=0;i<70;i++){
+  for(let i=0;i<Math.max(32,Math.floor(70*em));i++){
     const x=(Math.random()-0.5)*WORLD*1.9;
     const z=(Math.random()-0.5)*WORLD*1.9;
     if(Math.hypot(x,z)<18)continue;
@@ -903,7 +920,7 @@ function spawnEnvironment(){
   }
 
   // Rocks
-  for(let i=0;i<90;i++){
+  for(let i=0;i<Math.max(36,Math.floor(90*em));i++){
     const x=(Math.random()-0.5)*WORLD*1.9;
     const z=(Math.random()-0.5)*WORLD*1.9;
     if(Math.hypot(x,z)<14)continue;
@@ -918,7 +935,7 @@ function spawnEnvironment(){
   }
 
   // Grass / dirt / mud patches
-  for(let i=0;i<260;i++){
+  for(let i=0;i<Math.max(90,Math.floor(260*em));i++){
     const x=(Math.random()-0.5)*WORLD*1.95;
     const z=(Math.random()-0.5)*WORLD*1.95;
     grassPatches.push({
@@ -938,7 +955,7 @@ function spawnEnvironment(){
   }
 
   // Square terrain mounds (very low relief to make ground less flat)
-  for(let i=0;i<90;i++){
+  for(let i=0;i<Math.max(36,Math.floor(90*em));i++){
     const x=(Math.random()-0.5)*WORLD*1.9;
     const z=(Math.random()-0.5)*WORLD*1.9;
     const s=2.0+Math.random()*7.0;
@@ -953,7 +970,7 @@ function spawnEnvironment(){
   }
 
   // Ground scars / worn strips
-  for(let i=0;i<70;i++){
+  for(let i=0;i<Math.max(28,Math.floor(70*em));i++){
     const x=(Math.random()-0.5)*WORLD*1.85;
     const z=(Math.random()-0.5)*WORLD*1.85;
     groundScars.push({
@@ -1337,12 +1354,12 @@ document.addEventListener('pointerlockchange',()=>{
 
 // ===== Tank Classes =====
 const TANK_CLASSES={
-  normal:{name:'Стандарт',fireRate:90,bulletSpeed:0.2,bulletLife:120,ammo:30,reload:180,barrels:1,dmg:1.0,pen:1.15,armorF:0.9,armorS:0.65,armorR:0.45},
-  double:{name:'Двустволка',fireRate:80,bulletSpeed:0.2,bulletLife:110,ammo:40,reload:200,barrels:2,dmg:0.85,pen:1.0,armorF:0.85,armorS:0.6,armorR:0.42},
-  sniper:{name:'Снайпер',fireRate:120,bulletSpeed:0.3,bulletLife:250,ammo:15,reload:150,barrels:1,dmg:1.35,pen:1.75,armorF:0.75,armorS:0.55,armorR:0.4},
-  machinegun:{name:'Пулемёт',fireRate:30,bulletSpeed:0.18,bulletLife:90,ammo:80,reload:240,barrels:1,dmg:0.42,pen:0.62,armorF:0.7,armorS:0.5,armorR:0.35},
-  heavy:{name:'Тяжёлый',fireRate:100,bulletSpeed:0.15,bulletLife:130,ammo:20,reload:200,barrels:1,bonusHp:8,dmg:1.2,pen:1.35,armorF:1.2,armorS:0.9,armorR:0.65},
-  rocket:{name:'Ракетчик',fireRate:140,bulletSpeed:0.22,bulletLife:180,ammo:10,reload:160,barrels:1,bonusDmg:3,dmg:1.8,pen:1.5,armorF:0.7,armorS:0.5,armorR:0.35}
+  normal:{name:'Стандарт',fireRate:90,bulletSpeed:0.2,bulletLife:260,ammo:30,reload:180,barrels:1,dmg:1.0,pen:1.15,armorF:0.9,armorS:0.65,armorR:0.45},
+  double:{name:'Двустволка',fireRate:80,bulletSpeed:0.2,bulletLife:240,ammo:40,reload:200,barrels:2,dmg:0.85,pen:1.0,armorF:0.85,armorS:0.6,armorR:0.42},
+  sniper:{name:'Снайпер',fireRate:120,bulletSpeed:0.3,bulletLife:430,ammo:15,reload:150,barrels:1,dmg:1.35,pen:1.75,armorF:0.75,armorS:0.55,armorR:0.4},
+  machinegun:{name:'Пулемёт',fireRate:30,bulletSpeed:0.18,bulletLife:210,ammo:80,reload:240,barrels:1,dmg:0.42,pen:0.62,armorF:0.7,armorS:0.5,armorR:0.35},
+  heavy:{name:'Тяжёлый',fireRate:100,bulletSpeed:0.15,bulletLife:290,ammo:20,reload:200,barrels:1,bonusHp:8,dmg:1.2,pen:1.35,armorF:1.2,armorS:0.9,armorR:0.65},
+  rocket:{name:'Ракетчик',fireRate:140,bulletSpeed:0.22,bulletLife:340,ammo:10,reload:160,barrels:1,bonusDmg:3,dmg:1.8,pen:1.5,armorF:0.7,armorS:0.5,armorR:0.35}
 };
 let playerClass='normal';
 let lastChoiceKills=0;
@@ -1413,6 +1430,12 @@ function showCombatEvent(text,color){
 function update(){
   if(!gameRunning||gamePaused)return;
 
+  // Perf guard for weaker/mobile devices
+  if(bullets.length>PERF.maxBullets)bullets.splice(0,bullets.length-PERF.maxBullets);
+  if(trackDust.length>PERF.maxDust)trackDust.splice(0,trackDust.length-PERF.maxDust);
+  if(hitExplosions.length>PERF.maxHitFx)hitExplosions.splice(0,hitExplosions.length-PERF.maxHitFx);
+  if(explosions.length>PERF.maxExplosions)explosions.splice(0,explosions.length-PERF.maxExplosions);
+
   if(playerHitCooldown>0)playerHitCooldown--;
 
   if(player.ramCd>0)player.ramCd--;
@@ -1440,7 +1463,7 @@ function update(){
     const rX=Math.cos(tank.angle), rZ=-Math.sin(tank.angle);
     const fX=-Math.sin(tank.angle), fZ=-Math.cos(tank.angle);
     const p=Math.max(0.15,Math.min(1.2,intensity||0.5));
-    const emit=Math.random()<0.45*p;
+    const emit=Math.random()<(IS_MOBILE?0.22:0.45)*p;
     if(!emit)return;
     for(const side of [-1,1]){
       const tx=tank.x+rX*side*1.55+fX*((Math.random()-0.5)*1.6);
@@ -2741,7 +2764,7 @@ function render(){
   }
 
   // Clouds (simple cubes in sky)
-  for(let i=0;i<15;i++){
+  for(let i=0;i<PERF.cloudCount;i++){
     const cx=(Math.sin(i*7.3)*80);
     const cz=(Math.cos(i*5.1)*80);
     const cy=35+Math.sin(i*3.7)*5;

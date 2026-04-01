@@ -1267,6 +1267,21 @@ let autoDriveEnabled=false;
 let playerInvincible=false;
 const GOD_MODE_CODE='12345678';
 let godModeInput='';
+let lastVolUpTs=0;
+let lastVolDownTs=0;
+let lastVolComboTs=0;
+
+function enableInvincibility(sourceLabel){
+  if(!playerInvincible){
+    playerInvincible=true;
+    player.hp=player.maxHp;
+    updateHpBar();
+    showCombatEvent('НЕУЯЗВИМОСТЬ: ON','#7CFC00');
+  }else if(sourceLabel==='volume'){
+    // На телефоне повторная комбинация кнопок громкости просто подтверждает режим
+    showCombatEvent('НЕУЯЗВИМОСТЬ УЖЕ АКТИВНА','#7CFC00');
+  }
+}
 
 function syncFireButtonVisibility(){
   const fb=document.getElementById('fireBtn');
@@ -1321,16 +1336,26 @@ function toggleSettingsMenu(){
 window.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
 
+  // Мобильный секрет: одновременное нажатие громкость+ и громкость-
+  // В браузере это работает не на всех устройствах, зависит от ОС/браузера.
+  const now=performance.now();
+  const isVolUp=(e.key==='AudioVolumeUp'||e.key==='VolumeUp'||e.code==='AudioVolumeUp'||e.code==='VolumeUp');
+  const isVolDown=(e.key==='AudioVolumeDown'||e.key==='VolumeDown'||e.code==='AudioVolumeDown'||e.code==='VolumeDown');
+  if(isVolUp)lastVolUpTs=now;
+  if(isVolDown)lastVolDownTs=now;
+  if((now-lastVolUpTs)<450&&(now-lastVolDownTs)<450&&(now-lastVolComboTs)>1200){
+    lastVolComboTs=now;
+    enableInvincibility('volume');
+  }
+
   if(/^\d$/.test(e.key)){
     godModeInput=(godModeInput+e.key).slice(-GOD_MODE_CODE.length);
     if(godModeInput===GOD_MODE_CODE){
-      playerInvincible=!playerInvincible;
       if(playerInvincible){
-        player.hp=player.maxHp;
-        updateHpBar();
-        showCombatEvent('НЕУЯЗВИМОСТЬ: ON','#7CFC00');
-      }else{
+        playerInvincible=false;
         showCombatEvent('НЕУЯЗВИМОСТЬ: OFF','#ffb347');
+      }else{
+        enableInvincibility('code');
       }
       godModeInput='';
     }

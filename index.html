@@ -12,6 +12,19 @@
     #fsBtn{position:absolute;top:12px;right:180px;background:rgba(0,0,0,0.5);color:#fff;padding:4px 10px;
       border-radius:8px;font-size:18px;pointer-events:auto;cursor:pointer;z-index:30;border:1px solid rgba(255,255,255,0.3)}
     #fsBtn:active{background:rgba(255,255,255,0.2)}
+    #settingsBtn{position:absolute;top:12px;left:12px;width:42px;height:42px;background:rgba(0,0,0,0.55);color:#fff;
+      border-radius:10px;font-size:22px;pointer-events:auto;cursor:pointer;z-index:31;border:1px solid rgba(255,255,255,0.35);
+      display:flex;align-items:center;justify-content:center;line-height:1}
+    #settingsBtn:active{background:rgba(255,255,255,0.2)}
+    #settingsMenu{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:40;
+      background:rgba(0,0,0,0.45);pointer-events:auto}
+    #settingsPanel{background:rgba(10,10,10,0.92);border:1px solid rgba(255,255,255,0.3);border-radius:14px;
+      min-width:220px;max-width:85vw;padding:12px 12px 10px;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,0.45)}
+    .setTitle{font-size:15px;font-weight:bold;margin-bottom:8px;text-align:center;color:#ddd}
+    .setItem{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px}
+    .setToggle{background:linear-gradient(135deg,#2d7ef7,#1357b8);border:1px solid rgba(255,255,255,0.35);color:#fff;
+      border-radius:10px;padding:6px 10px;font-size:13px;cursor:pointer;min-width:74px}
+    .setToggle.off{background:linear-gradient(135deg,#555,#333)}
     #score{position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:16px;pointer-events:none}
     #score span{color:#ff4444;font-weight:bold;font-size:22px}
     #hp{position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:14px;pointer-events:none}
@@ -62,6 +75,11 @@
       color:#fff;font-weight:bold;font-size:17px;display:flex;align-items:center;justify-content:center;
       pointer-events:auto;user-select:none;-webkit-user-select:none;touch-action:none;box-shadow:0 8px 22px rgba(200,29,19,0.4)}
     #fireBtn:active{transform:scale(0.95);filter:brightness(1.08)}
+    #pauseBtnMobile{position:absolute;right:24px;bottom:134px;width:44px;height:44px;border-radius:50%;
+      background:rgba(0,0,0,0.55);border:2px solid rgba(255,255,255,0.42);color:#fff;font-size:22px;font-weight:bold;
+      display:none;align-items:center;justify-content:center;pointer-events:auto;user-select:none;-webkit-user-select:none;
+      touch-action:none;z-index:14;box-shadow:0 5px 14px rgba(0,0,0,0.35)}
+    #pauseBtnMobile:active{transform:scale(0.94);background:rgba(255,255,255,0.2)}
     #ammoDisplay.reloading{color:#fa0;animation:blink 0.5s infinite}
     #upgradeScreen{position:fixed;right:10px;bottom:10px;width:min(320px,92vw);height:auto;max-height:30vh;display:none;flex-direction:column;
       align-items:center;justify-content:flex-start;z-index:26;color:#fff;text-align:center;
@@ -86,11 +104,13 @@
 <canvas id="c"></canvas>
 <div id="hud">
   <div id="fsBtn" onclick="toggleFS()">⛶</div>
+  <div id="settingsBtn" title="Настройки">☰</div>
   <div id="score">Уничтожено: <span id="kills">0</span></div>
   <div id="combatEvent" style="position:absolute;top:58px;left:50%;transform:translateX(-50%);padding:4px 10px;border-radius:8px;background:rgba(0,0,0,0.45);color:#fff;font-size:13px;font-weight:bold;opacity:0;transition:opacity .15s;pointer-events:none">РИКОШЕТ</div>
   <div id="hp">HP<div id="hpBar"><div id="hpFill"></div></div></div>
   <div id="ammoDisplay">30 / 30</div>
   <div id="fireBtn">ОГОНЬ</div>
+  <div id="pauseBtnMobile" title="Пауза">⏸</div>
   <div id="bottomBars">
     <div class="barBox"><div class="barLabel" style="color:#4af">Ур. <span id="lvlNum">1</span></div><div class="barTrack"><div class="barFill" id="lvlFill" style="background:linear-gradient(90deg,#44aaff,#88ddff)"></div></div></div>
     <div class="barBox"><div class="barLabel" style="color:#fa4">Танк <span id="nextKillsText">0/3</span></div><div class="barTrack"><div class="barFill" id="nextFill" style="background:linear-gradient(90deg,#ff8844,#ffcc44)"></div></div></div>
@@ -105,6 +125,19 @@
     <div style="position:absolute;left:9px;top:9px;width:8px;height:8px;border:1px solid rgba(255,255,255,0.95);border-radius:50%"></div>
   </div>
   <canvas id="minimap"></canvas>
+</div>
+<div id="settingsMenu">
+  <div id="settingsPanel">
+    <div class="setTitle">Настройки</div>
+    <div class="setItem">
+      <span>Авто стрельба</span>
+      <button id="autoFireBtn" class="setToggle off">ВЫКЛ</button>
+    </div>
+    <div class="setItem">
+      <span>Сам едет</span>
+      <button id="autoDriveBtn" class="setToggle off">ВЫКЛ</button>
+    </div>
+  </div>
 </div>
   <div id="startScreen">
   <div class="emoji-t">🔫</div>
@@ -747,6 +780,8 @@ let obstacles=[];
 // Environment details
 let trees=[];
 let rocks=[];
+let houses=[];
+let ruins=[];
 let grassPatches=[];
 let terrainMounds=[];
 let groundScars=[];
@@ -881,7 +916,7 @@ function spawnObstacles(){
 }
 
 function spawnEnvironment(){
-  trees=[]; rocks=[]; grassPatches=[]; terrainMounds=[]; groundScars=[]; bridges=[]; trenches=[];
+  trees=[]; rocks=[]; houses=[]; ruins=[]; grassPatches=[]; terrainMounds=[]; groundScars=[]; bridges=[]; trenches=[];
   const em=PERF.envMul;
 
   // Bridges + trenches
@@ -931,6 +966,35 @@ function spawnEnvironment(){
       sz:0.35+Math.random()*1.4,
       rot:Math.random()*Math.PI,
       c:0.28+Math.random()*0.18
+    });
+  }
+
+  // Houses (домики на карте)
+  for(let i=0;i<Math.max(10,Math.floor(24*em));i++){
+    const x=(Math.random()-0.5)*WORLD*1.85;
+    const z=(Math.random()-0.5)*WORLD*1.85;
+    if(Math.hypot(x,z)<20)continue;
+    const w=3.2+Math.random()*3.2;
+    const d=3.2+Math.random()*3.2;
+    const h=2.3+Math.random()*2.0;
+    const roofH=0.95+Math.random()*1.1;
+    const floors=Math.random()<0.28?2:1;
+    const floorH=2.0+Math.random()*0.55;
+    const wallH=floorH*floors;
+    const roofType=Math.random()<0.6?'gable':'hip';
+    const wallTone=0.48+Math.random()*0.26;
+    const roofTone=0.22+Math.random()*0.25;
+    houses.push({
+      x,z,w,d,h:wallH,roofH,floors,roofType,
+      hp:3,
+      wall:[wallTone,wallTone*0.9,wallTone*0.78],
+      trim:[Math.min(0.92,wallTone+0.2),Math.min(0.9,wallTone+0.18),Math.min(0.86,wallTone+0.15)],
+      roof:[roofTone,roofTone*0.45,roofTone*0.35],
+      base:[0.3+Math.random()*0.15,0.29+Math.random()*0.14,0.27+Math.random()*0.12],
+      door:[0.23+Math.random()*0.08,0.14+Math.random()*0.05,0.08+Math.random()*0.04],
+      hasChimney:Math.random()<0.55,
+      doorSide:Math.random()<0.5?-1:1,
+      porch:Math.random()<0.5
     });
   }
 
@@ -992,6 +1056,7 @@ function spawnEnvironment(){
 
   trees=trees.filter(t=>!bridges.some(b=>insideRect(t.x,t.z,b.x,b.z,b.rot,b.w*0.9,b.len*0.65)));
   rocks=rocks.filter(r=>!bridges.some(b=>insideRect(r.x,r.z,b.x,b.z,b.rot,b.w*0.9,b.len*0.65)));
+  houses=houses.filter(h=>!bridges.some(b=>insideRect(h.x,h.z,b.x,b.z,b.rot,b.w*1.1,b.len*0.75)));
   grassPatches=grassPatches.filter(g=>!bridges.some(b=>insideRect(g.x,g.z,b.x,b.z,b.rot,b.w*0.8,b.len*0.6)));
   obstacles=obstacles.filter(o=>!bridges.some(b=>insideRect(o.x,o.z,b.x,b.z,b.rot,b.w*0.95,b.len*0.75)));
 }
@@ -1195,9 +1260,63 @@ function updateJoy(t){
 // Keyboard
 const keys={};
 let gamePaused=false;
+let settingsMenuOpen=false;
+let pauseBySettings=false;
+let autoFireEnabled=false;
+let autoDriveEnabled=false;
 let playerInvincible=false;
 const GOD_MODE_CODE='12345678';
 let godModeInput='';
+
+function syncFireButtonVisibility(){
+  const fb=document.getElementById('fireBtn');
+  if(!fb)return;
+  fb.style.display=autoFireEnabled?'none':'flex';
+}
+
+function updateSettingsUI(){
+  const af=document.getElementById('autoFireBtn');
+  const ad=document.getElementById('autoDriveBtn');
+  if(af){
+    af.textContent=autoFireEnabled?'ВКЛ':'ВЫКЛ';
+    af.classList.toggle('off',!autoFireEnabled);
+  }
+  if(ad){
+    ad.textContent=autoDriveEnabled?'ВКЛ':'ВЫКЛ';
+    ad.classList.toggle('off',!autoDriveEnabled);
+  }
+  syncFireButtonVisibility();
+}
+
+function openSettingsMenu(){
+  if(settingsMenuOpen)return;
+  settingsMenuOpen=true;
+  const menu=document.getElementById('settingsMenu');
+  if(menu)menu.style.display='flex';
+  if(gameRunning&&!gamePaused){
+    togglePause();
+    pauseBySettings=true;
+  }else{
+    pauseBySettings=false;
+  }
+  updateSettingsUI();
+}
+
+function closeSettingsMenu(){
+  if(!settingsMenuOpen)return;
+  settingsMenuOpen=false;
+  const menu=document.getElementById('settingsMenu');
+  if(menu)menu.style.display='none';
+  if(pauseBySettings&&gamePaused){
+    togglePause();
+  }
+  pauseBySettings=false;
+}
+
+function toggleSettingsMenu(){
+  if(settingsMenuOpen)closeSettingsMenu();
+  else openSettingsMenu();
+}
 
 window.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
@@ -1234,6 +1353,32 @@ document.getElementById('resumeBtn').addEventListener('click',()=>{
   canvas.requestPointerLock();
 });
 
+const settingsBtn=document.getElementById('settingsBtn');
+const settingsMenu=document.getElementById('settingsMenu');
+const autoFireBtn=document.getElementById('autoFireBtn');
+const autoDriveBtn=document.getElementById('autoDriveBtn');
+
+if(settingsBtn){
+  settingsBtn.addEventListener('click',(e)=>{e.preventDefault();toggleSettingsMenu();});
+}
+if(settingsMenu){
+  settingsMenu.addEventListener('click',(e)=>{
+    if(e.target===settingsMenu)closeSettingsMenu();
+  });
+}
+if(autoFireBtn){
+  autoFireBtn.addEventListener('click',()=>{
+    autoFireEnabled=!autoFireEnabled;
+    updateSettingsUI();
+  });
+}
+if(autoDriveBtn){
+  autoDriveBtn.addEventListener('click',()=>{
+    autoDriveEnabled=!autoDriveEnabled;
+    updateSettingsUI();
+  });
+}
+
 // Fire button removed by request
 let firePressed=false;
 let mouseFire=false;
@@ -1245,6 +1390,18 @@ if(fireBtn){
   fireBtn.addEventListener('mousedown',(e)=>{e.preventDefault();mouseFire=true;});
   fireBtn.addEventListener('mouseup',(e)=>{e.preventDefault();mouseFire=false;});
   fireBtn.addEventListener('mouseleave',()=>{mouseFire=false;});
+}
+
+const pauseBtnMobile=document.getElementById('pauseBtnMobile');
+if(pauseBtnMobile){
+  if(IS_MOBILE)pauseBtnMobile.style.display='flex';
+  const onPauseBtn=(e)=>{
+    e.preventDefault();
+    if(!gameRunning)return;
+    togglePause();
+  };
+  pauseBtnMobile.addEventListener('touchstart',onPauseBtn,{passive:false});
+  pauseBtnMobile.addEventListener('mousedown',onPauseBtn);
 }
 
 // Camera rotation via touch on canvas (not joystick area)
@@ -1546,6 +1703,16 @@ function update(){
         pushOutRect(o.x,o.z,hw,hd);
       }
 
+      // Дома
+      for(const h of houses){
+        const hdx=tank.x-h.x, hdz=tank.z-h.z;
+        const hr=Math.max(h.w,h.d)+pad+1.6;
+        if(hdx*hdx+hdz*hdz>hr*hr)continue;
+        const hw=h.w*0.5+pad*0.82;
+        const hd=h.d*0.5+pad*0.82;
+        pushOutRect(h.x,h.z,hw,hd);
+      }
+
       // Камни (декор твёрдый)
       for(const r of rocks){
         if((r.sy||0)<=climbHeight)continue;
@@ -1580,12 +1747,16 @@ function update(){
   if(keys['ArrowDown']||keys['KeyS'])joyY=Math.min(joyY,-1);
   if(keys['ArrowLeft']||keys['KeyA'])joyX=Math.min(joyX,-1);
   if(keys['ArrowRight']||keys['KeyD'])joyX=Math.max(joyX,1);
-  // Автоогонь: игрок стреляет автоматически (кнопка/клавиша тоже остаются рабочими)
-  firePressed=true;
+  // Автоогонь из настроек + ручная стрельба
+  firePressed=autoFireEnabled||mouseFire||!!keys['Space'];
 
   // Player movement like a real tank: no strafing, only forward/back + steering
-  const forwardInput=Math.max(-1,Math.min(1,joyY));
-  const turnInput=Math.max(-1,Math.min(1,joyX));
+  let forwardInput=Math.max(-1,Math.min(1,joyY));
+  let turnInput=Math.max(-1,Math.min(1,joyX));
+  if(autoDriveEnabled){
+    // Едет сам вперёд, но поворот оставляем под управлением игрока
+    forwardInput=1;
+  }
   // More realistic movement: acceleration, inertia, heavier steering
   const scoutBonus=TANK_CLASSES[playerClass].bonusSpeed||0;
   const maxForward=(6.2+UPGRADES.speed.val*1.45+scoutBonus)*dt;
@@ -1908,12 +2079,62 @@ function update(){
       }
     }
 
+    // Shell hits houses (дом разрушается после 3 попаданий)
+    if(!hitObs){
+      for(let hi=houses.length-1;hi>=0;hi--){
+        const h=houses[hi];
+        if(segmentAabbHit(prevX,prevZ,b.x,b.z,h.x,h.z,h.w*0.5+0.2,h.d*0.5+0.2)){
+          h.hp=(h.hp===undefined?3:h.hp)-1;
+          if(h.hp<=0){
+            // Дом разрушен
+            explosions.push({x:h.x,y:1,z:h.z,t:0});
+            // Остаются руины
+            ruins.push({
+              x:h.x,
+              z:h.z,
+              w:h.w,
+              d:h.d,
+              tone:[
+                (h.base&&h.base[0])||0.34,
+                (h.base&&h.base[1])||0.3,
+                (h.base&&h.base[2])||0.24
+              ],
+              chunks:3+Math.floor(Math.random()*3)
+            });
+            houses.splice(hi,1);
+          }else{
+            // Лёгкий визуальный эффект попадания
+            pushHitExplosion(h.x,h.z,1.15,'impact',1.0);
+          }
+          hitObs=true;
+          break;
+        }
+      }
+    }
+
     // Rocks and tree trunks are solid for shells too
     if(!hitObs){
       for(const r of rocks){
         if(segmentAabbHit(prevX,prevZ,b.x,b.z,r.x,r.z,r.sx*0.55,r.sz*0.55)){
           hitObs=true;break;
         }
+      }
+    }
+    if(!hitObs){
+      for(const r of ruins){
+        const chunks=r.chunks||4;
+        for(let ci=0;ci<chunks;ci++){
+          const ang=(ci/chunks)*Math.PI*2;
+          const rx=r.x+Math.cos(ang)*(r.w*0.18);
+          const rz=r.z+Math.sin(ang)*(r.d*0.18);
+          const rw=Math.max(0.6,r.w*0.22);
+          const rd=Math.max(0.6,r.d*0.22);
+          if(segmentAabbHit(prevX,prevZ,b.x,b.z,rx,rz,rw,rd)){
+            hitObs=true;
+            break;
+          }
+        }
+        if(hitObs)break;
       }
     }
     if(!hitObs){
@@ -2298,10 +2519,11 @@ function render(){
     const tdx=tr.x-player.x,tdz=tr.z-player.z;
     if(tdx*tdx+tdz*tdz>190*190)continue;
     m=mat4Mul(
-      mat4Trans(tr.x,-tr.depth*0.45,tr.z),
+      // Полностью утапливаем ров ниже уровня земли, чтобы не было чёрного блока
+      mat4Trans(tr.x,-tr.depth*0.56,tr.z),
       mat4Mul(mat4RotY(tr.rot),mat4Scale(tr.w,tr.depth,tr.len))
     );
-    drawBox(mat4Mul(vp,m),m,[0.11,0.1,0.09],1);
+    drawBox(mat4Mul(vp,m),m,[0.24,0.2,0.15],1);
   }
 
   // Bridges (проезжаемые)
@@ -2409,6 +2631,112 @@ function render(){
   for(const o of obstacles){
     m=mat4Mul(mat4Trans(o.x,o.h/2,o.z),mat4Scale(o.w,o.h,o.d));
     drawBox(mat4Mul(vp,m),m,o.color,1);
+  }
+
+  // Houses
+  for(const h of houses){
+    const hdx=h.x-player.x,hdz=h.z-player.z;
+    if(hdx*hdx+hdz*hdz>190*190)continue;
+    const floorH=h.h/Math.max(1,h.floors||1);
+
+    // Foundation
+    m=mat4Mul(mat4Trans(h.x,0.12,h.z),mat4Scale(h.w*1.03,0.24,h.d*1.03));
+    drawBox(mat4Mul(vp,m),m,h.base,1);
+
+    // Main walls
+    m=mat4Mul(mat4Trans(h.x,h.h*0.5+0.24,h.z),mat4Scale(h.w,h.h,h.d));
+    drawBox(mat4Mul(vp,m),m,h.wall,1);
+
+    // Corner trim columns
+    for(const sx of [-1,1])for(const sz of [-1,1]){
+      m=mat4Mul(mat4Trans(h.x+sx*(h.w*0.49),h.h*0.5+0.24,h.z+sz*(h.d*0.49)),mat4Scale(h.w*0.045,h.h*0.98,h.d*0.045));
+      drawBox(mat4Mul(vp,m),m,h.trim,1);
+    }
+
+    // Floor separator for 2-floor houses
+    if((h.floors||1)>1){
+      m=mat4Mul(mat4Trans(h.x,floorH+0.24,h.z),mat4Scale(h.w*1.01,0.07,h.d*1.01));
+      drawBox(mat4Mul(vp,m),m,h.trim,1);
+    }
+
+    // Flat roof only (ровные крыши)
+    m=mat4Mul(mat4Trans(h.x,h.h+0.24+h.roofH*0.18,h.z),mat4Scale(h.w*1.08,h.roofH*0.36,h.d*1.08));
+    drawBox(mat4Mul(vp,m),m,h.roof,1);
+
+    // Chimney
+    if(h.hasChimney){
+      const cx=h.x+h.w*0.22;
+      const cz=h.z+h.d*0.18;
+      const cy=h.h+0.24+h.roofH*0.75;
+      m=mat4Mul(mat4Trans(cx,cy,cz),mat4Scale(h.w*0.11,h.roofH*0.9,h.d*0.11));
+      drawBox(mat4Mul(vp,m),m,[0.35,0.32,0.3],1);
+      m=mat4Mul(mat4Trans(cx,cy+h.roofH*0.45,cz),mat4Scale(h.w*0.13,h.roofH*0.1,h.d*0.13));
+      drawBox(mat4Mul(vp,m),m,[0.16,0.16,0.17],1);
+    }
+
+    // Door + porch
+    const doorX=h.x+h.doorSide*(h.w*0.24);
+    const doorY=floorH*0.34+0.24;
+    m=mat4Mul(mat4Trans(doorX,doorY,h.z-h.d*0.5-0.03),mat4Scale(h.w*0.18,floorH*0.66,0.08));
+    drawBox(mat4Mul(vp,m),m,h.door,1);
+    // door frame
+    m=mat4Mul(mat4Trans(doorX,doorY,h.z-h.d*0.5-0.026),mat4Scale(h.w*0.205,floorH*0.71,0.03));
+    drawBox(mat4Mul(vp,m),m,h.trim,1);
+    if(h.porch){
+      m=mat4Mul(mat4Trans(doorX,0.2,h.z-h.d*0.59),mat4Scale(h.w*0.34,0.08,h.d*0.18));
+      drawBox(mat4Mul(vp,m),m,[0.3,0.26,0.2],1);
+    }
+
+    // Windows (front/back + second floor)
+    const winCol=[0.63,0.82,0.97];
+    const winW=h.w*0.14;
+    const winH=floorH*0.22;
+    const zFront=h.z-h.d*0.5-0.02;
+    const zBack=h.z+h.d*0.5+0.02;
+    for(const wx of [-h.w*0.26,h.w*0.26]){
+      m=mat4Mul(mat4Trans(h.x+wx,floorH*0.62+0.24,zFront),mat4Scale(winW,winH,0.05));
+      drawBox(mat4Mul(vp,m),m,winCol,1,0.09);
+      m=mat4Mul(mat4Trans(h.x+wx,floorH*0.62+0.24,zBack),mat4Scale(winW,winH,0.05));
+      drawBox(mat4Mul(vp,m),m,winCol,1,0.05);
+      if((h.floors||1)>1){
+        m=mat4Mul(mat4Trans(h.x+wx,floorH*1.62+0.24,zFront),mat4Scale(winW*0.92,winH*0.9,0.05));
+        drawBox(mat4Mul(vp,m),m,winCol,1,0.09);
+        m=mat4Mul(mat4Trans(h.x+wx,floorH*1.62+0.24,zBack),mat4Scale(winW*0.92,winH*0.9,0.05));
+        drawBox(mat4Mul(vp,m),m,winCol,1,0.05);
+      }
+    }
+
+    // Side windows
+    for(const sz of [-h.d*0.22,h.d*0.22]){
+      m=mat4Mul(mat4Trans(h.x-h.w*0.5-0.02,floorH*0.62+0.24,h.z+sz),mat4Scale(0.05,winH,winW*0.82));
+      drawBox(mat4Mul(vp,m),m,winCol,1,0.06);
+      m=mat4Mul(mat4Trans(h.x+h.w*0.5+0.02,floorH*0.62+0.24,h.z+sz),mat4Scale(0.05,winH,winW*0.82));
+      drawBox(mat4Mul(vp,m),m,winCol,1,0.06);
+    }
+  }
+
+  // Ruins (обломки разрушенных домов)
+  for(const r of ruins){
+    const rdx=r.x-player.x,rdz=r.z-player.z;
+    if(rdx*rdx+rdz*rdz>190*190)continue;
+    const chunks=r.chunks||4;
+    const t=r.tone||[0.34,0.3,0.24];
+
+    // Основание завала
+    m=mat4Mul(mat4Trans(r.x,0.08,r.z),mat4Scale(r.w*0.78,0.16,r.d*0.78));
+    drawBox(mat4Mul(vp,m),m,[t[0]*0.85,t[1]*0.85,t[2]*0.85],1);
+
+    // Крупные куски
+    for(let ci=0;ci<chunks;ci++){
+      const ang=(ci/chunks)*Math.PI*2;
+      const px=r.x+Math.cos(ang)*(r.w*0.2);
+      const pz=r.z+Math.sin(ang)*(r.d*0.2);
+      const sx=Math.max(0.5,r.w*(0.16+((ci%3)*0.04)));
+      const sy=0.2+((ci%2)*0.08);
+      const sz=Math.max(0.5,r.d*(0.14+((ci%2)*0.05)));
+      m=mat4Mul(mat4Trans(px,0.18+sy*0.5,pz),mat4Mul(mat4RotY(ang+0.35),mat4Scale(sx,sy,sz)));
+      drawBox(mat4Mul(vp,m),m,[t[0]*0.95,t[1]*0.92,t[2]*0.9],1);
+    }
   }
 
   // Rocks
@@ -2797,6 +3125,18 @@ function drawMinimap(){
     mctx.fillRect(o.x*s+ox-1,o.z*s+oz-1,3,3);
   }
 
+  // Houses
+  mctx.fillStyle='rgba(190,170,120,0.9)';
+  for(const h of houses){
+    mctx.fillRect(h.x*s+ox-1.5,h.z*s+oz-1.5,4,4);
+  }
+
+  // Ruins
+  mctx.fillStyle='rgba(120,110,90,0.9)';
+  for(const r of ruins){
+    mctx.fillRect(r.x*s+ox-1.5,r.z*s+oz-1.5,3,3);
+  }
+
   // Allies (green dots)
   mctx.fillStyle='#4c4';
   for(const a of allies){
@@ -2864,6 +3204,13 @@ document.getElementById('startBtn').addEventListener('touchend',(e)=>{e.preventD
 document.getElementById('startBtn').addEventListener('click',(e)=>{e.preventDefault();startGame();});
 document.getElementById('restartBtn').addEventListener('click',(e)=>{e.preventDefault();startGame();});
 document.getElementById('restartBtn').addEventListener('touchend',(e)=>{e.preventDefault();startGame();});
+
+const onlineBtn=document.getElementById('onlineBtn');
+if(onlineBtn){
+  onlineBtn.remove();
+}
+
+syncFireButtonVisibility();
 
 loop();
 </script>

@@ -119,11 +119,6 @@
     <div id="joystickBase"></div>
     <div id="joystickKnob"></div>
   </div>
-  <div id="mouseAim" style="position:absolute;left:50%;top:50%;width:26px;height:26px;transform:translate(-50%,-50%);display:none;z-index:15;pointer-events:none">
-    <div style="position:absolute;left:12px;top:0;width:2px;height:26px;background:rgba(255,255,255,0.95)"></div>
-    <div style="position:absolute;left:0;top:12px;width:26px;height:2px;background:rgba(255,255,255,0.95)"></div>
-    <div style="position:absolute;left:9px;top:9px;width:8px;height:8px;border:1px solid rgba(255,255,255,0.95);border-radius:50%"></div>
-  </div>
   <canvas id="minimap"></canvas>
 </div>
 <div id="settingsMenu">
@@ -904,13 +899,53 @@ function spawnObstacles(){
   obstacles=[];
   const obstacleCount=Math.max(10,Math.floor(20*PERF.envMul));
   for(let i=0;i<obstacleCount;i++){
+    const tRnd=Math.random();
+    let type='concrete';
+    if(tRnd<0.22)type='bunker';
+    else if(tRnd<0.48)type='crate';
+    else if(tRnd<0.7)type='barricade';
+    else if(tRnd<0.88)type='sandbag';
+
+    // Размеры подбираем по типу, чтобы не было «ломаных»/переразмеренных фигур
+    // и визуальных артефактов от слишком экстремальных пропорций.
+    let baseW=2.4+Math.random()*2.2;
+    let baseH=1.2+Math.random()*2.0;
+    let baseD=2.4+Math.random()*2.2;
+    if(type==='bunker'){
+      baseW=3.0+Math.random()*2.3;
+      baseH=1.6+Math.random()*1.8;
+      baseD=3.0+Math.random()*2.3;
+    }else if(type==='crate'){
+      baseW=2.0+Math.random()*1.8;
+      baseH=1.0+Math.random()*1.3;
+      baseD=2.0+Math.random()*1.8;
+    }else if(type==='barricade'){
+      baseW=2.2+Math.random()*2.0;
+      baseH=1.4+Math.random()*1.3;
+      baseD=2.2+Math.random()*2.0;
+    }else if(type==='sandbag'){
+      baseW=2.2+Math.random()*1.6;
+      baseH=0.9+Math.random()*1.0;
+      baseD=2.0+Math.random()*1.5;
+    }
+
     obstacles.push({
       x:(Math.random()-0.5)*WORLD*1.6,
       z:(Math.random()-0.5)*WORLD*1.6,
-      w:2+Math.random()*3,
-      h:1+Math.random()*4,
-      d:2+Math.random()*3,
-      color:[0.35+Math.random()*0.15,0.32+Math.random()*0.1,0.28+Math.random()*0.08]
+      w:baseW,
+      h:baseH,
+      d:baseD,
+      rot:Math.random()*Math.PI,
+      type,
+      color:[0.35+Math.random()*0.15,0.32+Math.random()*0.1,0.28+Math.random()*0.08],
+      tone:Math.random(),
+      wear:Math.random(),
+      chips:2+Math.floor(Math.random()*4),
+      rustSpots:[
+        {dx:(Math.random()-0.5),dz:(Math.random()-0.5),y:0.25},
+        {dx:(Math.random()-0.5),dz:(Math.random()-0.5),y:0.45},
+        {dx:(Math.random()-0.5),dz:(Math.random()-0.5),y:0.65}
+      ]
     });
   }
 }
@@ -936,7 +971,13 @@ function spawnEnvironment(){
     const pierGap=4.8+Math.random()*1.8;
     const woodTone=0.34+Math.random()*0.2;
     const steelTone=0.18+Math.random()*0.16;
-    bridges.push({x,z,rot,len,w,deckLen,y,thick,railH,pierGap,woodTone,steelTone});
+    const styleRnd=Math.random();
+    const bridgeType=styleRnd<0.38?'steel':(styleRnd<0.72?'wood':'concrete');
+    const deckCamber=0.05+Math.random()*0.08;
+    const trussH=0.7+Math.random()*0.55;
+    const pierW=0.16+Math.random()*0.1;
+    const hasXBrace=Math.random()<0.82;
+    bridges.push({x,z,rot,len,w,deckLen,y,thick,railH,pierGap,woodTone,steelTone,bridgeType,deckCamber,trussH,pierW,hasXBrace});
     trenches.push({x,z,rot,len:len+12,w:w+8.5,depth:1.35+Math.random()*0.55});
   }
 
@@ -945,12 +986,20 @@ function spawnEnvironment(){
     const x=(Math.random()-0.5)*WORLD*1.9;
     const z=(Math.random()-0.5)*WORLD*1.9;
     if(Math.hypot(x,z)<18)continue;
+    const kind=Math.random()<0.56?'pine':'oak';
+    const h=2.4+Math.random()*3.6;
+    const w=0.22+Math.random()*0.26;
+    const crown=1.0+Math.random()*1.9;
     trees.push({
       x,z,
-      h:2.2+Math.random()*3.2,
-      w:0.25+Math.random()*0.22,
-      crown:1.2+Math.random()*1.6,
-      tone:0.25+Math.random()*0.2
+      h,w,crown,
+      tone:0.24+Math.random()*0.24,
+      kind,
+      lean:(Math.random()-0.5)*0.16,
+      leanDir:Math.random()*Math.PI*2,
+      trunkTone:0.22+Math.random()*0.16,
+      crownJitter:Math.random()*0.28,
+      tiers:2+Math.floor(Math.random()*3)
     });
   }
 
@@ -1440,6 +1489,19 @@ function clampCamPitch(){
 }
 let rightPointerMode=false;
 let rightAimUnlocking=false;
+let mouseAimX=window.innerWidth*0.5;
+let mouseAimY=window.innerHeight*0.5;
+let playerAimYaw=0;
+
+function normAngle(a){
+  while(a>Math.PI)a-=Math.PI*2;
+  while(a<-Math.PI)a+=Math.PI*2;
+  return a;
+}
+
+function angleDelta(a,b){
+  return normAngle(a-b);
+}
 
 function setMousePointerVisible(v){
   const cur=v?'default':'';
@@ -1447,6 +1509,57 @@ function setMousePointerVisible(v){
   canvas.style.cursor=cur;
   const hud=document.getElementById('hud');
   if(hud)hud.style.cursor=cur;
+}
+
+function setMouseAimColor(color){
+  const aimV=document.getElementById('aimVert');
+  const aimH=document.getElementById('aimHorz');
+  const aimR=document.getElementById('aimRing');
+  if(aimV)aimV.style.background=color;
+  if(aimH)aimH.style.background=color;
+  if(aimR)aimR.style.borderColor=color;
+}
+
+function updateMouseAimIndicator(){
+  const aim=document.getElementById('mouseAim');
+  const shouldShow=gameRunning&&!gamePaused;
+  if(aim){
+    aim.style.display=shouldShow?'block':'none';
+  }
+  if(!shouldShow)return;
+
+  // Прицел управляется курсором (в режиме без pointer lock).
+  // В pointer lock держим прицел по центру.
+  if(document.pointerLockElement===canvas){
+    mouseAimX=window.innerWidth*0.5;
+    mouseAimY=window.innerHeight*0.5;
+  }
+  if(aim){
+    aim.style.left=Math.max(13,Math.min(window.innerWidth-13,mouseAimX))+'px';
+    aim.style.top=Math.max(13,Math.min(window.innerHeight-13,mouseAimY))+'px';
+  }
+
+  // Базовое направление прицела (по горизонтали экрана)
+  const relX=(mouseAimX-window.innerWidth*0.5)/Math.max(1,window.innerWidth*0.5);
+  // Инвертируем знак смещения: вправо по экрану = вправо по наведению
+  const screenYawOffset=-relX*0.95;
+  const baseAimYaw=camYaw+screenYawOffset;
+
+  const cls=TANK_CLASSES[playerClass]||TANK_CLASSES.normal;
+  const maxReach=(cls.bulletLife+UPGRADES.bulletRange.val*25)*cls.bulletSpeed;
+
+  // Только ручное наведение (без автоподхвата цели)
+  playerAimYaw=normAngle(baseAimYaw);
+
+  let nearestDist=Infinity;
+  for(const e of enemies){
+    if(e.hp<=0)continue;
+    const d=Math.hypot(e.x-player.x,e.z-player.z);
+    if(d<nearestDist)nearestDist=d;
+  }
+
+  const reachable=nearestDist<=maxReach;
+  setMouseAimColor(reachable?'rgba(90,255,110,0.95)':'rgba(255,80,80,0.95)');
 }
 
 function setRightPointerMode(v){
@@ -1516,12 +1629,20 @@ canvas.addEventListener('mousemove',(e)=>{
     // Вертикальное движение отключено
     clampCamPitch();
   }
+
+  // Позиция прицела от реального курсора (когда lock выключен)
+  if(document.pointerLockElement!==canvas){
+    mouseAimX=e.clientX;
+    mouseAimY=e.clientY;
+  }
 });
 document.addEventListener('pointerlockchange',()=>{
   const upScreen=document.getElementById('upgradeScreen').style.display==='flex';
   const tcScreen=document.getElementById('tankChoiceScreen').style.display==='flex';
   if(document.pointerLockElement===canvas){
     setMousePointerVisible(false);
+    mouseAimX=window.innerWidth*0.5;
+    mouseAimY=window.innerHeight*0.5;
   }else if(rightPointerMode){
     setMousePointerVisible(true);
   }
@@ -1610,6 +1731,7 @@ function showCombatEvent(text,color){
 }
 
 function update(){
+  updateMouseAimIndicator();
   if(!gameRunning||gamePaused)return;
 
   // Perf guard for weaker/mobile devices
@@ -1922,7 +2044,7 @@ function update(){
   resolveTankObstacleCollision(player);
 
   // Turret follows aim with stronger lag (as requested)
-  const targetTurret=camYaw;
+  const targetTurret=playerAimYaw;
   let tda=targetTurret-player.turretAngle;
   while(tda>Math.PI)tda-=Math.PI*2;
   while(tda<-Math.PI)tda+=Math.PI*2;
@@ -1950,16 +2072,18 @@ function update(){
     const cls=TANK_CLASSES[playerClass];
     fireCooldown=Math.max(5,cls.fireRate-UPGRADES.fireRate.val*5);
     ammo--;
-    const dirX=-Math.sin(player.turretAngle);
-    const dirZ=-Math.cos(player.turretAngle);
+    // Стрельба строго по направлению прицела (а не по отстающему визуально стволу)
+    const shootAngle=playerAimYaw;
+    const dirX=-Math.sin(shootAngle);
+    const dirZ=-Math.cos(shootAngle);
     const spd=cls.bulletSpeed;
     const rocketBonus=TANK_CLASSES[playerClass].bonusDmg||0;
     const pDmg=((cls.dmg||1)+UPGRADES.bulletPower.val*0.3+rocketBonus);
     const pPen=((cls.pen||1)+UPGRADES.bulletPower.val*0.18);
     const pLife=cls.bulletLife+UPGRADES.bulletRange.val*25;
     if(cls.barrels===2){
-      const ox=Math.cos(player.turretAngle)*0.4;
-      const oz=-Math.sin(player.turretAngle)*0.4;
+      const ox=Math.cos(shootAngle)*0.4;
+      const oz=-Math.sin(shootAngle)*0.4;
       const b1={x:player.x+dirX*4.5+ox,y:1.5,z:player.z+dirZ*4.5+oz,vx:dirX*spd,vz:dirZ*spd,life:pLife,owner:'player',dmg:pDmg,pen:pPen};
       const b2={x:player.x+dirX*4.5-ox,y:1.5,z:player.z+dirZ*4.5-oz,vx:dirX*spd,vz:dirZ*spd,life:pLife,owner:'player',dmg:pDmg,pen:pPen};
       bullets.push(b1); bullets.push(b2);
@@ -2559,12 +2683,18 @@ function render(){
     const railH=b.railH||0.58;
     const deckHalf=b.deckLen*0.5;
     const rampLen=(b.len-b.deckLen)*0.5;
+    const bridgeType=b.bridgeType||'wood';
     const steelTone=b.steelTone||0.26;
     const woodTone=b.woodTone||0.42;
     const wood=[woodTone,woodTone*0.8,woodTone*0.52];
     const steel=[steelTone,steelTone*1.02,steelTone*1.06];
+    const concrete=[0.56+steelTone*0.16,0.56+steelTone*0.14,0.55+steelTone*0.12];
+    const deckCol=bridgeType==='concrete'?concrete:(bridgeType==='steel'?[0.46,0.45,0.42]:wood);
+    const beamCol=bridgeType==='wood'?[steel[0]*0.82,steel[1]*0.82,steel[2]*0.82]:steel;
     const bridgeBase=mat4Mul(mat4Trans(b.x,b.y,b.z),mat4RotY(b.rot));
     const rampAng=Math.atan2(b.y,Math.max(0.5,rampLen));
+    const deckCamber=b.deckCamber||0.08;
+    const trussH=b.trussH||0.95;
 
     function drawBridgeLocal(lx,ly,lz,sx,sy,sz,col,rx){
       const r=rx?mat4RotX(rx):mat4();
@@ -2572,56 +2702,104 @@ function render(){
       drawBox(mat4Mul(vp,m),m,col,1);
     }
 
-    // Main deck slab
-    drawBridgeLocal(0,-thick*0.5,0,b.w,thick,b.deckLen,wood,0);
+    // Main deck slab + slight camber in the center (more realistic road profile)
+    drawBridgeLocal(0,-thick*0.5,0,b.w,thick,b.deckLen,deckCol,0);
+    drawBridgeLocal(0,-thick*0.22+deckCamber*0.1,0,b.w*0.44,thick*0.34,b.deckLen*0.97,[deckCol[0]*1.04,deckCol[1]*1.04,deckCol[2]*1.04],0);
 
-    // Longitudinal steel girders under deck
-    for(const sx of [-1,1]){
-      drawBridgeLocal(sx*(b.w*0.32),-thick*0.95,0,0.26,thick*1.05,b.deckLen*0.98,steel,0);
+    // Longitudinal girders under deck
+    for(const sx of [-1,-0.33,0.33,1]){
+      drawBridgeLocal(sx*(b.w*0.34),-thick*0.98,0,0.18,thick*1.08,b.deckLen*0.98,beamCol,0);
     }
 
-    // Planks on top (visual detail)
-    const plankGap=0.88;
+    // Transverse cross-beams
+    const crossCount=Math.max(6,Math.floor(b.deckLen/1.45));
+    for(let i=0;i<=crossCount;i++){
+      const z=-deckHalf+i*(b.deckLen/crossCount);
+      drawBridgeLocal(0,-thick*0.86,z,b.w*0.78,0.1,0.12,beamCol,0);
+    }
+
+    // Road surface details by bridge type
+    const plankGap=bridgeType==='steel'?1.05:0.86;
     const plankCount=Math.max(8,Math.floor(b.deckLen/plankGap));
     for(let i=0;i<plankCount;i++){
       const z=-deckHalf+(i+0.5)*(b.deckLen/plankCount);
-      const v=0.9+0.18*Math.sin(i*0.9+b.x*0.02);
-      drawBridgeLocal(0,-thick*0.08,z,b.w*0.92,0.035,b.deckLen/plankCount*0.78,[wood[0]*v,wood[1]*v,wood[2]*v],0);
+      if(bridgeType==='wood'){
+        const v=0.9+0.18*Math.sin(i*0.9+b.x*0.02);
+        drawBridgeLocal(0,-thick*0.08,z,b.w*0.92,0.035,b.deckLen/plankCount*0.78,[wood[0]*v,wood[1]*v,wood[2]*v],0);
+      }else if(bridgeType==='steel'){
+        drawBridgeLocal(0,-thick*0.08,z,b.w*0.9,0.03,b.deckLen/plankCount*0.74,[0.43,0.43,0.42],0);
+      }else{
+        drawBridgeLocal(0,-thick*0.09,z,b.w*0.9,0.025,b.deckLen/plankCount*0.8,[concrete[0]*0.95,concrete[1]*0.95,concrete[2]*0.95],0);
+      }
     }
 
-    // Ramps (with similar plank pattern)
+    // Ramps
     for(const sgn of [-1,1]){
       const rz=sgn*(deckHalf+rampLen*0.5);
-      drawBridgeLocal(0,-b.y*0.5-thick*0.4,rz,b.w*0.96,thick*0.78,rampLen*1.02,wood,sgn*rampAng);
+      drawBridgeLocal(0,-b.y*0.5-thick*0.4,rz,b.w*0.96,thick*0.78,rampLen*1.02,deckCol,sgn*rampAng);
       const rpCount=Math.max(4,Math.floor(rampLen/0.85));
       for(let i=0;i<rpCount;i++){
         const lz=sgn*(deckHalf+(i+0.5)*(rampLen/rpCount));
         const t=(i+0.5)/rpCount;
         const ly=-t*b.y-thick*0.08;
-        drawBridgeLocal(0,ly,lz,b.w*0.9,0.03,rampLen/rpCount*0.76,[wood[0]*0.95,wood[1]*0.95,wood[2]*0.95],sgn*rampAng);
+        const rampCol=bridgeType==='wood'?[wood[0]*0.95,wood[1]*0.95,wood[2]*0.95]:(bridgeType==='steel'?[0.42,0.42,0.41]:[concrete[0]*0.94,concrete[1]*0.94,concrete[2]*0.94]);
+        drawBridgeLocal(0,ly,lz,b.w*0.9,0.03,rampLen/rpCount*0.76,rampCol,sgn*rampAng);
       }
+
+      // End abutments (bridge headwalls)
+      const abutCol=bridgeType==='concrete'?[0.44,0.43,0.42]:[0.34,0.33,0.31];
+      drawBridgeLocal(0,-b.y*0.82-thick*0.46,sgn*(deckHalf+rampLen*0.98),b.w*1.02,b.y*0.6+0.35,0.42,abutCol,0);
     }
 
-    // Side rail posts and top rail
-    const postStep=1.6;
-    const postCount=Math.max(5,Math.floor(b.deckLen/postStep));
-    for(const sgn of [-1,1]){
-      for(let i=0;i<=postCount;i++){
-        const z=-deckHalf+i*(b.deckLen/postCount);
-        drawBridgeLocal(sgn*(b.w*0.5-0.08),railH*0.45,z,0.11,railH,0.11,steel,0);
+    // Side barriers / rails
+    if(bridgeType==='concrete'){
+      for(const sgn of [-1,1]){
+        drawBridgeLocal(sgn*(b.w*0.5-0.16),railH*0.38,0,0.18,railH*0.78,b.deckLen*0.99,[concrete[0]*0.9,concrete[1]*0.9,concrete[2]*0.9],0);
+        drawBridgeLocal(sgn*(b.w*0.5-0.1),railH*0.8,0,0.08,0.08,b.deckLen*0.98,[0.35,0.35,0.36],0);
       }
-      drawBridgeLocal(sgn*(b.w*0.5-0.08),railH*0.92,0,0.08,0.08,b.deckLen*0.98,[steel[0]*1.12,steel[1]*1.12,steel[2]*1.12],0);
-      drawBridgeLocal(sgn*(b.w*0.5-0.13),railH*0.62,0,0.06,0.06,b.deckLen*0.98,[steel[0]*0.94,steel[1]*0.94,steel[2]*0.94],0);
+    }else{
+      const postStep=1.6;
+      const postCount=Math.max(5,Math.floor(b.deckLen/postStep));
+      for(const sgn of [-1,1]){
+        for(let i=0;i<=postCount;i++){
+          const z=-deckHalf+i*(b.deckLen/postCount);
+          drawBridgeLocal(sgn*(b.w*0.5-0.08),railH*0.45,z,0.11,railH,0.11,beamCol,0);
+        }
+        drawBridgeLocal(sgn*(b.w*0.5-0.08),railH*0.92,0,0.08,0.08,b.deckLen*0.98,[beamCol[0]*1.08,beamCol[1]*1.08,beamCol[2]*1.08],0);
+        drawBridgeLocal(sgn*(b.w*0.5-0.13),railH*0.62,0,0.06,0.06,b.deckLen*0.98,[beamCol[0]*0.92,beamCol[1]*0.92,beamCol[2]*0.92],0);
+        if(bridgeType==='steel'){
+          drawBridgeLocal(sgn*(b.w*0.5-0.18),railH*0.32,0,0.05,0.05,b.deckLen*0.98,[beamCol[0]*0.85,beamCol[1]*0.85,beamCol[2]*0.85],0);
+        }
+      }
     }
 
     // Support piers in trench
     const gap=Math.max(3.8,b.pierGap||5.2);
     const pierCount=Math.max(2,Math.floor(b.deckLen/gap));
+    let nearDepth=1.45;
+    let bestTrD=1e9;
+    for(const tr of trenches){
+      const dd=(tr.x-b.x)*(tr.x-b.x)+(tr.z-b.z)*(tr.z-b.z);
+      if(dd<bestTrD){bestTrD=dd;nearDepth=tr.depth||nearDepth;}
+    }
     for(let i=0;i<=pierCount;i++){
       const z=-deckHalf+i*(b.deckLen/pierCount);
-      const pierH=Math.max(0.8,b.y+trenches[0]?.depth*0.2||1.2);
-      drawBridgeLocal(0,-pierH*0.5-thick*0.9,z,b.w*0.18,pierH,b.w*0.42,[0.24,0.24,0.25],0);
-      drawBridgeLocal(0,-thick*1.25,z,b.w*0.74,0.12,b.w*0.2,steel,0);
+      const pierH=Math.max(0.85,b.y+nearDepth*0.32);
+      const pw=(b.pierW||0.2)*b.w;
+      drawBridgeLocal(-b.w*0.22,-pierH*0.5-thick*0.9,z,pw,pierH,b.w*0.3,[0.24,0.24,0.25],0);
+      drawBridgeLocal( b.w*0.22,-pierH*0.5-thick*0.9,z,pw,pierH,b.w*0.3,[0.24,0.24,0.25],0);
+      drawBridgeLocal(0,-thick*1.24,z,b.w*0.78,0.12,b.w*0.19,beamCol,0);
+
+      // Steel truss diagonals between pier bents
+      if(bridgeType==='steel'&&b.hasXBrace&&i<pierCount){
+        const nz=-deckHalf+(i+1)*(b.deckLen/pierCount);
+        const mid=(z+nz)*0.5;
+        const span=Math.abs(nz-z);
+        for(const sgn of [-1,1]){
+          drawBridgeLocal(sgn*(b.w*0.3),-thick*0.95,mid,0.05,trussH,span*0.72,[beamCol[0]*0.9,beamCol[1]*0.9,beamCol[2]*0.9],sgn*0.52);
+          drawBridgeLocal(sgn*(b.w*0.3),-thick*0.95,mid,0.05,trussH,span*0.72,[beamCol[0]*0.9,beamCol[1]*0.9,beamCol[2]*0.9],-sgn*0.52);
+        }
+      }
     }
   }
 
@@ -2654,8 +2832,100 @@ function render(){
 
   // Obstacles
   for(const o of obstacles){
-    m=mat4Mul(mat4Trans(o.x,o.h/2,o.z),mat4Scale(o.w,o.h,o.d));
-    drawBox(mat4Mul(vp,m),m,o.color,1);
+    const odx=o.x-player.x,odz=o.z-player.z;
+    if(odx*odx+odz*odz>185*185)continue;
+
+    const rot=o.rot||0;
+    const type=o.type||'concrete';
+
+    function drawObsPart(lx,ly,lz,sx,sy,sz,col,ry){
+      const localRot=ry?mat4RotY(ry):mat4();
+      m=mat4Mul(
+        mat4Trans(o.x,0,o.z),
+        mat4Mul(
+          mat4RotY(rot),
+          mat4Mul(
+            mat4Trans(lx,ly,lz),
+            mat4Mul(localRot,mat4Scale(sx,sy,sz))
+          )
+        )
+      );
+      drawBox(mat4Mul(vp,m),m,col,1);
+    }
+
+    if(type==='bunker'){
+      const wall=[0.38+o.tone*0.08,0.37+o.tone*0.06,0.35+o.tone*0.04];
+      const dark=[wall[0]*0.72,wall[1]*0.72,wall[2]*0.72];
+      // main block
+      drawObsPart(0,o.h*0.45,0,o.w*1.12,o.h*0.9,o.d*1.12,wall,0);
+      // roof slab
+      drawObsPart(0,o.h*0.95,0,o.w*1.2,0.26,o.d*1.2,[wall[0]*0.9,wall[1]*0.9,wall[2]*0.9],0);
+      // embrasure
+      drawObsPart(0,o.h*0.55,-o.d*0.43,o.w*0.52,o.h*0.2,0.12,dark,0);
+      // side wear blocks
+      for(const sx of [-1,1]){
+        drawObsPart(sx*o.w*0.42,o.h*0.35,0,0.18,0.26,0.18,[wall[0]*0.8,wall[1]*0.78,wall[2]*0.75],0);
+      }
+    }else if(type==='crate'){
+      const wood=[0.42+o.tone*0.2,0.3+o.tone*0.12,0.18+o.tone*0.06];
+      const metal=[0.2,0.2,0.22];
+      // 3 ящика в стопке
+      const items=[
+        [0,0,0,o.w*0.95,o.h*0.5,o.d*0.95,rot],
+        [o.w*0.22,o.h*0.48,o.d*0.08,o.w*0.7,o.h*0.38,o.d*0.72,rot+0.12],
+        [-o.w*0.2,o.h*0.86,-o.d*0.1,o.w*0.56,o.h*0.3,o.d*0.58,rot-0.1]
+      ];
+      for(const it of items){
+        drawObsPart(it[0],it[1],it[2],it[3],it[4],it[5],wood,it[6]-rot);
+        // metal straps
+        drawObsPart(it[0],it[1],it[2],it[3]*1.02,it[4]*0.08,it[5]*1.02,metal,it[6]-rot);
+      }
+    }else if(type==='barricade'){
+      const steel=[0.28+o.tone*0.1,0.29+o.tone*0.1,0.31+o.tone*0.1];
+      const rust=[0.42,0.23,0.14];
+      // crossed anti-tank hedgehog style
+      const hH=Math.max(0.9,o.h*0.95);
+      for(const a of [0,Math.PI*0.5,Math.PI*0.25]){
+        drawObsPart(0,hH*0.5,0,o.w*0.22,hH,o.d*1.05,steel,a);
+      }
+      // rust spots
+      const spots=o.rustSpots||[];
+      for(let k=0;k<spots.length;k++){
+        const rs=spots[k];
+        drawObsPart(rs.dx*o.w*0.4,hH*(rs.y||0.3),rs.dz*o.d*0.4,0.2,0.1,0.2,rust,0);
+      }
+    }else if(type==='sandbag'){
+      const sack=[0.54+o.tone*0.08,0.49+o.tone*0.06,0.36+o.tone*0.05];
+      const rows=2;
+      const cols=4;
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const sx=(c-(cols-1)/2)*(o.w*0.28)+(r%2?o.w*0.1:0);
+          const sy=0.22+r*0.26;
+          const sz=(r-0.5)*0.25;
+          m=mat4Mul(
+            mat4Trans(o.x,o.h*0.08+sy,o.z),
+            mat4Mul(mat4RotY(rot),mat4Mul(mat4Trans(sx,0,sz),mat4Scale(o.w*0.24,0.2,o.d*0.22)))
+          );
+          drawCylinder(mat4Mul(vp,m),m,sack,1);
+        }
+      }
+      // wooden support plank
+      drawObsPart(0,o.h*0.08+0.18,0,o.w*0.95,0.08,o.d*0.16,[0.35,0.24,0.14],0);
+    }else{
+      // concrete block with damaged corners
+      const c=[0.36+o.tone*0.12,0.36+o.tone*0.1,0.35+o.tone*0.08];
+      drawObsPart(0,o.h/2,0,o.w,o.h,o.d,c,0);
+      // top cap with dirt
+      drawObsPart(0,o.h+0.04,0,o.w*0.98,0.08,o.d*0.98,[c[0]*0.74,c[1]*0.68,c[2]*0.55],0);
+      // corner chips
+      const chipCol=[c[0]*0.75,c[1]*0.75,c[2]*0.72];
+      for(let k=0;k<(o.chips||2);k++){
+        const sx=(k%2?1:-1)*o.w*0.44;
+        const sz=(k%3?1:-1)*o.d*0.42;
+        drawObsPart(sx,o.h*(0.2+0.14*k),sz,0.22,0.18,0.22,chipCol,0);
+      }
+    }
   }
 
   // Houses
@@ -2785,18 +3055,73 @@ function render(){
   for(const t of trees){
     const tdx=t.x-player.x,tdz=t.z-player.z;
     if(tdx*tdx+tdz*tdz>170*170)continue;
-    // trunk (округлый)
-    m=mat4Mul(mat4Trans(t.x,t.h*0.5,t.z),mat4Scale(t.w*1.05,t.h,t.w*1.05));
-    drawCylinder(mat4Mul(vp,m),m,[0.34,0.24,0.13],1);
-    // lower crown
-    m=mat4Mul(mat4Trans(t.x,t.h+0.45,t.z),mat4Scale(t.crown,0.9,t.crown));
-    drawCylinder(mat4Mul(vp,m),m,[0.12,0.32+t.tone*0.2,0.12],1);
-    // mid crown
-    m=mat4Mul(mat4Trans(t.x,t.h+0.95,t.z),mat4Scale(t.crown*0.86,0.75,t.crown*0.86));
-    drawCylinder(mat4Mul(vp,m),m,[0.115,0.3+t.tone*0.19,0.115],1);
-    // upper crown
-    m=mat4Mul(mat4Trans(t.x,t.h+1.35,t.z),mat4Scale(t.crown*0.68,0.62,t.crown*0.68));
-    drawCylinder(mat4Mul(vp,m),m,[0.11,0.28+t.tone*0.2,0.11],1);
+
+    // Наклон ствола + естественная «ломаность»
+    const lx=Math.cos(t.leanDir||0)*(t.lean||0);
+    const lz=Math.sin(t.leanDir||0)*(t.lean||0);
+    const trunkMidX=t.x+lx*t.h*0.35;
+    const trunkMidZ=t.z+lz*t.h*0.35;
+    // Точка привязки кроны должна быть рядом с вершиной ствола,
+    // иначе листва выглядит «висящей в воздухе».
+    const crownAnchorX=trunkMidX+lx*t.h*0.14;
+    const crownAnchorZ=trunkMidZ+lz*t.h*0.14;
+    const crownAnchorY=t.h*0.93;
+
+    const tr=t.trunkTone||0.28;
+    const trunkCol=[0.28+tr*0.45,0.2+tr*0.26,0.12+tr*0.12];
+    const barkCol=[trunkCol[0]*0.88,trunkCol[1]*0.88,trunkCol[2]*0.82];
+
+    // trunk lower
+    m=mat4Mul(mat4Trans(t.x,t.h*0.28,t.z),mat4Scale(t.w*1.22,t.h*0.56,t.w*1.22));
+    drawCylinder(mat4Mul(vp,m),m,barkCol,1);
+    // trunk upper (slightly thinner and shifted)
+    m=mat4Mul(mat4Trans(trunkMidX,t.h*0.72,trunkMidZ),mat4Scale(t.w*0.92,t.h*0.42,t.w*0.92));
+    drawCylinder(mat4Mul(vp,m),m,trunkCol,1);
+
+    // small root bulge for realism
+    m=mat4Mul(mat4Trans(t.x,0.12,t.z),mat4Scale(t.w*1.9,0.22,t.w*1.9));
+    drawCylinder(mat4Mul(vp,m),m,[trunkCol[0]*0.8,trunkCol[1]*0.7,trunkCol[2]*0.62],1);
+
+    if(t.kind==='pine'){
+      // Хвойное дерево: 2-4 конусных (через цилиндры) яруса
+      const layers=t.tiers||3;
+      for(let k=0;k<layers;k++){
+        const fk=k/Math.max(1,layers-1);
+        const rad=t.crown*(1-fk*0.28)*(1-((t.crownJitter||0)*0.16*Math.sin(k*1.7+t.x*0.03)));
+        const hh=0.85-fk*0.14;
+        const yy=crownAnchorY+0.16+k*0.42;
+        const ox=lx*(0.25+k*0.35)*t.h;
+        const oz=lz*(0.25+k*0.35)*t.h;
+        const g=0.26+t.tone*0.26-fk*0.03;
+        m=mat4Mul(mat4Trans(crownAnchorX+ox,yy,crownAnchorZ+oz),mat4Scale(rad,hh,rad));
+        drawCylinder(mat4Mul(vp,m),m,[0.08,g,0.08],1);
+      }
+      // верхушка
+      m=mat4Mul(mat4Trans(crownAnchorX+lx*t.h*0.2,crownAnchorY+1.1,crownAnchorZ+lz*t.h*0.2),mat4Scale(t.crown*0.36,0.62,t.crown*0.36));
+      drawCylinder(mat4Mul(vp,m),m,[0.09,0.26+t.tone*0.2,0.09],1);
+    }else{
+      // Лиственное дерево: объёмная крона из нескольких «шапок»
+      const baseG=0.3+t.tone*0.24;
+      const crownColor=[0.13,baseG,0.1];
+      const puffs=[
+        [0,0,0,1.0,0.95],
+        [0.35,0.18,0.22,0.72,0.72],
+        [-0.32,0.16,-0.24,0.68,0.7],
+        [0.12,0.34,-0.33,0.62,0.62],
+        [-0.18,0.36,0.32,0.58,0.58]
+      ];
+      for(const p of puffs){
+        const j=(t.crownJitter||0);
+        const ox=(p[0]+Math.sin(t.x*0.04+p[2])*j*0.28)*t.crown;
+        const oy=(p[1])*t.crown;
+        const oz=(p[2]+Math.cos(t.z*0.04+p[0])*j*0.28)*t.crown;
+        const sx=t.crown*p[3];
+        const sy=t.crown*p[4]*0.82;
+        const sz=t.crown*p[3];
+        m=mat4Mul(mat4Trans(crownAnchorX+ox,crownAnchorY+0.26+oy,crownAnchorZ+oz),mat4Scale(sx,sy,sz));
+        drawCylinder(mat4Mul(vp,m),m,[crownColor[0],crownColor[1]-(p[1]*0.05),crownColor[2]],1);
+      }
+    }
   }
 
   // Draw tank (more realistic silhouette/details)

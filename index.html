@@ -80,6 +80,13 @@
       display:none;align-items:center;justify-content:center;pointer-events:auto;user-select:none;-webkit-user-select:none;
       touch-action:none;z-index:14;box-shadow:0 5px 14px rgba(0,0,0,0.35)}
     #pauseBtnMobile:active{transform:scale(0.94);background:rgba(255,255,255,0.2)}
+    #adminBadge{position:absolute;top:62px;left:12px;background:linear-gradient(135deg,#16a34a,#166534);color:#fff;
+      padding:6px 10px;border-radius:10px;font-size:12px;font-weight:bold;display:none;pointer-events:none;
+      border:1px solid rgba(255,255,255,0.35);box-shadow:0 4px 14px rgba(22,163,74,0.35)}
+    #reportCheaterBtn{position:absolute;top:62px;right:12px;background:linear-gradient(135deg,#f97316,#c2410c);color:#fff;
+      padding:7px 12px;border-radius:10px;font-size:12px;font-weight:bold;display:none;pointer-events:auto;cursor:pointer;
+      border:1px solid rgba(255,255,255,0.35);box-shadow:0 4px 14px rgba(194,65,12,0.35)}
+    #reportCheaterBtn:active{transform:scale(0.97)}
     #ammoDisplay.reloading{color:#fa0;animation:blink 0.5s infinite}
     #upgradeScreen{position:fixed;right:10px;bottom:10px;width:min(320px,92vw);height:auto;max-height:30vh;display:none;flex-direction:column;
       align-items:center;justify-content:flex-start;z-index:26;color:#fff;text-align:center;
@@ -111,6 +118,8 @@
   <div id="ammoDisplay">30 / 30</div>
   <div id="fireBtn">ОГОНЬ</div>
   <div id="pauseBtnMobile" title="Пауза">⏸</div>
+  <div id="adminBadge">🛡 ADMIN MODE</div>
+  <button id="reportCheaterBtn" title="Пожаловаться владельцу">⚠ Читер</button>
   <div id="bottomBars">
     <div class="barBox"><div class="barLabel" style="color:#4af">Ур. <span id="lvlNum">1</span></div><div class="barTrack"><div class="barFill" id="lvlFill" style="background:linear-gradient(90deg,#44aaff,#88ddff)"></div></div></div>
     <div class="barBox"><div class="barLabel" style="color:#fa4">Танк <span id="nextKillsText">0/3</span></div><div class="barTrack"><div class="barFill" id="nextFill" style="background:linear-gradient(90deg,#ff8844,#ffcc44)"></div></div></div>
@@ -139,6 +148,13 @@
   <h1 id="title">Танчики 3D</h1>
   <p class="sub">Води пальцем — управляй танком. Кнопка ОГОНЬ — стреляй! Уничтожай вражеские танки!</p>
   <button class="btn" id="startBtn">В бой!</button>
+  <div id="moneyPanel" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:420px">
+    <button class="btn" id="buySourceBtn" style="padding:10px 16px;font-size:14px;background:linear-gradient(135deg,#22c55e,#15803d)">Купить админ-статус • 124 000₽</button>
+    <button class="btn" id="donateBtn" style="padding:10px 16px;font-size:14px;background:linear-gradient(135deg,#f59e0b,#b45309)">Поддержать проект • 199₽</button>
+  </div>
+  <div style="margin-top:8px;color:#9fd2ff;font-size:12px;max-width:420px;line-height:1.35">
+    Покупка админ-статуса: маленький неуязвимый танк + контроль читеров — 124 000₽
+  </div>
   <!-- three fire icons next to start button -->
   <div id="startFires" style="margin-top:12px;display:flex;gap:8px">
     <div class="start-fire" style="width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#ffd16a,#ff4500);box-shadow:0 0 8px rgba(255,100,0,0.8)"></div>
@@ -235,6 +251,10 @@
   <div class="fs" id="finalKills">0</div>
   <p class="bs" id="bestKills">Лучший: 0</p>
   <button class="btn" id="restartBtn">Ещё раз!</button>
+  <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+    <button class="btn" id="buySourceBtnOver" style="padding:9px 14px;font-size:13px;background:linear-gradient(135deg,#22c55e,#15803d)">Купить админ-статус • 124 000₽</button>
+    <button class="btn" id="donateBtnOver" style="padding:9px 14px;font-size:13px;background:linear-gradient(135deg,#f59e0b,#b45309)">Донат • 199₽</button>
+  </div>
 </div>
 
 <script>
@@ -570,14 +590,15 @@ void main(){
   vec3 v=normalize(uEyePos-vWorldPos);
   float diff=max(dot(n,l),0.0);
   vec3 h=normalize(l+v);
-  float spec=pow(max(dot(n,h),0.0),24.0);
+  float spec=pow(max(dot(n,h),0.0),20.0);
   float rim=pow(1.0-max(dot(n,v),0.0),2.0);
-  vec3 col=uColor*(0.45+0.55*diff)+vec3(1.0)*spec*0.25+uColor*rim*0.18;
+  vec3 sunTint=vec3(1.0,0.93,0.78);
+  vec3 col=uColor*(0.34+0.66*diff)*sunTint+sunTint*spec*0.2+uColor*rim*0.1;
   col+=uColor*uEmissive;
   // fog
   float d=length(vWorldPos);
-  float fog=clamp((d-80.0)/120.0,0.0,1.0)*uFog;
-  vec3 fogCol=vec3(0.55,0.75,0.95);
+  float fog=clamp((d-60.0)/90.0,0.0,1.0)*uFog;
+  vec3 fogCol=vec3(0.72,0.80,0.86);
   col=mix(col,fogCol,fog);
   gl_FragColor=vec4(col,1.0);
 }`;
@@ -694,7 +715,7 @@ function drawBox(mvp,model,color,fog,emissive){
   gl.uniformMatrix4fv(uMVP,false,mvp);
   gl.uniformMatrix4fv(uModel,false,model);
   gl.uniform3fv(uColor,color);
-  gl.uniform3fv(uLightDir,[0.4,0.8,0.3]);
+  gl.uniform3fv(uLightDir,[0.22,0.95,0.18]);
   gl.uniform1f(uFog,fog===undefined?1:fog);
   gl.uniform1f(uEmissive,emissive===undefined?0:emissive);
   gl.drawElements(gl.TRIANGLES,box.count,gl.UNSIGNED_SHORT,0);
@@ -710,7 +731,7 @@ function drawCylinder(mvp,model,color,fog,emissive){
   gl.uniformMatrix4fv(uMVP,false,mvp);
   gl.uniformMatrix4fv(uModel,false,model);
   gl.uniform3fv(uColor,color);
-  gl.uniform3fv(uLightDir,[0.4,0.8,0.3]);
+  gl.uniform3fv(uLightDir,[0.22,0.95,0.18]);
   gl.uniform1f(uFog,fog===undefined?1:fog);
   gl.uniform1f(uEmissive,emissive===undefined?0:emissive);
   gl.drawElements(gl.TRIANGLES,cyl.count,gl.UNSIGNED_SHORT,0);
@@ -756,7 +777,7 @@ const ENEMY_TEAM_SIZE=5;
 const ALLY_TEAM_SIZE=5;
 
 // Player
-let player={x:0,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0,rotSpeed:0,ramCd:0,armorFront:1.0,armorSide:0.75,armorRear:0.55,vel:0,turnVel:0,recoil:0};
+let player={x:0,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0,rotSpeed:0,ramCd:0,armorFront:1.0,armorSide:0.75,armorRear:0.55,vel:0,turnVel:0,recoil:0,flyMode:false,flyHeight:0,flyVel:0};
 // Teams
 let allies=[];  // green team (player's team)
 let enemies=[]; // red team
@@ -1234,8 +1255,8 @@ function applyUpgrades(){
 
 function resetGame(){
   // Игрок стартует на половине союзников
-  player={x:-WORLD*0.45,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0,ramCd:0,armorFront:1.0,armorSide:0.75,armorRear:0.55,vel:0,turnVel:0,recoil:0};
-  playerInvincible=false;
+  player={x:-WORLD*0.45,z:0,angle:0,turretAngle:0,hp:5,maxHp:5,speed:0,ramCd:0,armorFront:1.0,armorSide:0.75,armorRear:0.55,vel:0,turnVel:0,recoil:0,flyMode:false,flyHeight:0,flyVel:0};
+  playerInvincible=!!isAdmin;
   godModeInput='';
   enemies=[]; allies=[]; bullets=[]; explosions=[]; hitExplosions=[]; flashes=[]; trackDust=[];
   kills=0; lastChoiceKills=0; playerClass='normal';
@@ -1313,7 +1334,9 @@ let settingsMenuOpen=false;
 let pauseBySettings=false;
 let autoFireEnabled=false;
 let autoDriveEnabled=false;
-let playerInvincible=false;
+let isAdmin=localStorage.getItem('tank3dAdmin')==='1';
+const ADMIN_TANK_SCALE=0.62;
+let playerInvincible=!!isAdmin;
 const GOD_MODE_CODE='12345678';
 let godModeInput='';
 let lastVolUpTs=0;
@@ -1330,6 +1353,31 @@ function enableInvincibility(sourceLabel){
     // На телефоне повторная комбинация кнопок громкости просто подтверждает режим
     showCombatEvent('НЕУЯЗВИМОСТЬ УЖЕ АКТИВНА','#7CFC00');
   }
+}
+
+function syncAdminUI(){
+  const badge=document.getElementById('adminBadge');
+  const reportBtn=document.getElementById('reportCheaterBtn');
+  if(badge)badge.style.display=isAdmin?'block':'none';
+  if(reportBtn)reportBtn.style.display=isAdmin?'block':'none';
+}
+
+function setAdminMode(v,announce){
+  isAdmin=!!v;
+  if(isAdmin){
+    localStorage.setItem('tank3dAdmin','1');
+    playerInvincible=true;
+    if(player){
+      player.hp=player.maxHp||player.hp;
+      updateHpBar();
+    }
+    if(announce&&gameRunning)showCombatEvent('ADMIN MODE: ON','#7CFC00');
+  }else{
+    localStorage.removeItem('tank3dAdmin');
+    playerInvincible=false;
+    if(announce&&gameRunning)showCombatEvent('ADMIN MODE: OFF','#ffb347');
+  }
+  syncAdminUI();
 }
 
 function syncFireButtonVisibility(){
@@ -1384,6 +1432,17 @@ function toggleSettingsMenu(){
 
 window.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
+
+  // Полёт танка по кнопке N (поддержка латиницы и кириллицы)
+  if(gameRunning&&(e.code==='KeyN'||e.code==='KeyY'||e.key==='n'||e.key==='N'||e.key==='т'||e.key==='Т'||e.key==='н'||e.key==='Н')){
+    player.flyMode=!player.flyMode;
+    if(player.flyMode){
+      player.flyVel=Math.max(player.flyVel,0.03);
+      showCombatEvent('РЕЖИМ ПОЛЁТА: ON','#7dd3fc');
+    }else{
+      showCombatEvent('РЕЖИМ ПОЛЁТА: OFF','#ffb347');
+    }
+  }
 
   // Мобильный секрет: одновременное нажатие громкость+ и громкость-
   // В браузере это работает не на всех устройствах, зависит от ОС/браузера.
@@ -2041,7 +2100,24 @@ function update(){
   }
 
   // Player vs obstacles
-  resolveTankObstacleCollision(player);
+  if((player.flyHeight||0)<0.35){
+    resolveTankObstacleCollision(player);
+  }
+
+  // Flight dynamics
+  const FLY_MAX_H=9.0;
+  if(player.flyMode){
+    const targetV=0.12;
+    player.flyVel+=(targetV-player.flyVel)*0.08;
+    player.flyHeight=Math.min(FLY_MAX_H,player.flyHeight+player.flyVel);
+  }else{
+    player.flyVel-=0.028;
+    player.flyHeight+=player.flyVel;
+    if(player.flyHeight<=0){
+      player.flyHeight=0;
+      player.flyVel=0;
+    }
+  }
 
   // Turret follows aim with stronger lag (as requested)
   const targetTurret=playerAimYaw;
@@ -2579,6 +2655,11 @@ function chooseTank(type){
   }
   const ammoEl=document.getElementById('ammoDisplay');
   if(ammoEl){ammoEl.textContent=ammo+' / '+MAX_AMMO;ammoEl.className='';}
+
+  if(isAdmin){
+    player.hp=player.maxHp;
+    updateHpBar();
+  }
   document.getElementById('tankChoiceScreen').style.display='none';
   pendingTankChoice=false;
   updateNextBar();
@@ -2615,7 +2696,7 @@ function randomAIClass(){
 
 // ===== Render =====
 function render(){
-  gl.clearColor(0.62,0.78,0.96,1);
+  gl.clearColor(0.62,0.73,0.86,1);
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
 
   const asp=canvas.width/canvas.height;
@@ -2624,20 +2705,21 @@ function render(){
   // Camera behind player
   const camDist=12;
   const horizDist=camDist*Math.cos(camPitch);
-  const eyeY=1.9+camDist*Math.sin(camPitch);
+  const flyCam=(player.flyHeight||0)*0.78;
+  const eyeY=1.9+camDist*Math.sin(camPitch)+flyCam;
   const eyeX=player.x+Math.sin(camYaw)*horizDist;
   const eyeZ=player.z+Math.cos(camYaw)*horizDist;
-  const view=mat4LookAt([eyeX,eyeY,eyeZ],[player.x,1.2,player.z],[0,1,0]);
+  const view=mat4LookAt([eyeX,eyeY,eyeZ],[player.x,1.2+flyCam,player.z],[0,1,0]);
   const vp=mat4Mul(proj,view);
   gl.uniform3fv(uEyePos,[eyeX,eyeY,eyeZ]);
 
   // Ground base + broad tone layers
   let m=mat4Mul(mat4Trans(0,-0.22,0),mat4Scale(WORLD*2,0.44,WORLD*2));
-  drawBox(mat4Mul(vp,m),m,[0.31,0.29,0.22],1);
+  drawBox(mat4Mul(vp,m),m,[0.40,0.31,0.21],1);
   m=mat4Mul(mat4Trans(0,-0.03,0),mat4Scale(WORLD*1.75,0.03,WORLD*1.75));
-  drawBox(mat4Mul(vp,m),m,[0.27,0.35,0.2],1);
+  drawBox(mat4Mul(vp,m),m,[0.48,0.36,0.2],1);
   m=mat4Mul(mat4Trans(0,-0.015,0),mat4Scale(WORLD*1.25,0.02,WORLD*1.25));
-  drawBox(mat4Mul(vp,m),m,[0.35,0.31,0.22],1);
+  drawBox(mat4Mul(vp,m),m,[0.54,0.40,0.24],1);
 
   // Low-relief mounds (pseudo terrain height variation)
   for(const h of terrainMounds){
@@ -2807,10 +2889,10 @@ function render(){
   for(const g of grassPatches){
     const gdx=g.x-player.x,gdz=g.z-player.z;
     if(gdx*gdx+gdz*gdz>170*170)continue;
-    let col=[0.24,0.36,0.19];
-    if(g.t==='dirt')col=[0.39,0.32,0.22];
-    else if(g.t==='dry')col=[0.43,0.39,0.24];
-    else if(g.t==='mud')col=[0.23,0.2,0.16];
+    let col=[0.36,0.39,0.2];
+    if(g.t==='dirt')col=[0.50,0.36,0.22];
+    else if(g.t==='dry')col=[0.58,0.45,0.25];
+    else if(g.t==='mud')col=[0.33,0.24,0.17];
     m=mat4Mul(
       mat4Trans(g.x,g.y,g.z),
       mat4Mul(mat4RotY(g.rot||0),mat4Scale(g.sx,0.012,g.sz))
@@ -3092,17 +3174,17 @@ function render(){
         const yy=crownAnchorY+0.16+k*0.42;
         const ox=lx*(0.25+k*0.35)*t.h;
         const oz=lz*(0.25+k*0.35)*t.h;
-        const g=0.26+t.tone*0.26-fk*0.03;
+        const g=0.24+t.tone*0.22-fk*0.03;
         m=mat4Mul(mat4Trans(crownAnchorX+ox,yy,crownAnchorZ+oz),mat4Scale(rad,hh,rad));
-        drawCylinder(mat4Mul(vp,m),m,[0.08,g,0.08],1);
+        drawCylinder(mat4Mul(vp,m),m,[0.12,g,0.08],1);
       }
       // верхушка
       m=mat4Mul(mat4Trans(crownAnchorX+lx*t.h*0.2,crownAnchorY+1.1,crownAnchorZ+lz*t.h*0.2),mat4Scale(t.crown*0.36,0.62,t.crown*0.36));
-      drawCylinder(mat4Mul(vp,m),m,[0.09,0.26+t.tone*0.2,0.09],1);
+      drawCylinder(mat4Mul(vp,m),m,[0.13,0.24+t.tone*0.16,0.08],1);
     }else{
       // Лиственное дерево: объёмная крона из нескольких «шапок»
-      const baseG=0.3+t.tone*0.24;
-      const crownColor=[0.13,baseG,0.1];
+      const baseG=0.28+t.tone*0.15;
+      const crownColor=[0.28,baseG,0.10];
       const puffs=[
         [0,0,0,1.0,0.95],
         [0.35,0.18,0.22,0.72,0.72],
@@ -3131,10 +3213,19 @@ function render(){
     tiltPitch=tiltPitch||0;
     tiltRoll=tiltRoll||0;
     const s=scale;
-    const dc=[bodyColor[0]*0.72,bodyColor[1]*0.72,bodyColor[2]*0.72];
-    const mc=[trackColor[0]*0.62,trackColor[1]*0.62,trackColor[2]*0.62];
-    const steel=[0.22,0.23,0.24];
-    const rubber=[0.08,0.08,0.08];
+    const sandBase=[0.76,0.72,0.62];
+    const sandDark=[0.61,0.56,0.46];
+    const sandLight=[0.86,0.83,0.74];
+    const dust=[0.69,0.64,0.54];
+    const teamTint=[
+      Math.min(1,bodyColor[0]*0.45),
+      Math.min(1,bodyColor[1]*0.45),
+      Math.min(1,bodyColor[2]*0.45)
+    ];
+    const dc=[sandDark[0],sandDark[1],sandDark[2]];
+    const mc=[0.2,0.2,0.21];
+    const steel=[0.24,0.25,0.26];
+    const rubber=[0.07,0.07,0.07];
     const selfRecoil=(tx===player.x&&tz===player.z)?player.recoil:0;
     const hullRot=mat4Mul(mat4RotY(bodyAngle),mat4Mul(mat4RotZ(tiltRoll),mat4RotX(tiltPitch)));
     const turretRot=mat4Mul(hullRot,mat4RotY(turretAngle-bodyAngle));
@@ -3142,7 +3233,7 @@ function render(){
 
     // Lower hull
     m=mat4Mul(mat4Trans(tx,ty+0.42*s,tz),mat4Mul(hullRot,mat4Scale(2.7*s,0.52*s,3.9*s)));
-    drawBox(mat4Mul(vp,m),m,bodyColor,1);
+    drawBox(mat4Mul(vp,m),m,sandBase,1);
 
     // Upper hull / glacis
     m=mat4Mul(mat4Trans(tx,ty+0.78*s,tz),mat4Mul(hullRot,mat4Scale(2.45*s,0.42*s,2.8*s)));
@@ -3156,10 +3247,10 @@ function render(){
 
     // Left track
     m=mat4Mul(mat4Trans(tx,ty+0.3*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(-1.52*s,0,0),mat4Scale(0.5*s,0.55*s,3.7*s))));
-    drawBox(mat4Mul(vp,m),m,trackColor,1);
+    drawBox(mat4Mul(vp,m),m,[0.1,0.1,0.1],1);
     // Right track
     m=mat4Mul(mat4Trans(tx,ty+0.3*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(1.52*s,0,0),mat4Scale(0.5*s,0.55*s,3.7*s))));
-    drawBox(mat4Mul(vp,m),m,trackColor,1);
+    drawBox(mat4Mul(vp,m),m,[0.1,0.1,0.1],1);
 
     // Road wheels (left/right)
     for(let i=0;i<6;i++){
@@ -3180,10 +3271,10 @@ function render(){
 
     // Left skirt
     m=mat4Mul(mat4Trans(tx,ty+0.54*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(-1.75*s,0,0),mat4Scale(0.08*s,0.44*s,3.15*s))));
-    drawBox(mat4Mul(vp,m),m,bodyColor,1);
+    drawBox(mat4Mul(vp,m),m,sandDark,1);
     // Right skirt
     m=mat4Mul(mat4Trans(tx,ty+0.54*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(1.75*s,0,0),mat4Scale(0.08*s,0.44*s,3.15*s))));
-    drawBox(mat4Mul(vp,m),m,bodyColor,1);
+    drawBox(mat4Mul(vp,m),m,sandDark,1);
 
     // Turret ring
     m=mat4Mul(mat4Trans(tx,ty+1.08*s,tz),mat4Mul(hullRot,mat4Scale(1.55*s,0.16*s,1.55*s)));
@@ -3191,11 +3282,11 @@ function render(){
 
     // Turret
     m=mat4Mul(mat4Trans(tx,ty+1.35*s,tz),mat4Mul(turretRot,mat4Scale(1.75*s,0.6*s,1.95*s)));
-    drawBox(mat4Mul(vp,m),m,turretColor,1);
+    drawBox(mat4Mul(vp,m),m,sandBase,1);
 
     // Turret cheek/front armor
     m=mat4Mul(mat4Trans(tx,ty+1.34*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,-0.95*s),mat4Scale(1.45*s,0.5*s,0.55*s))));
-    drawBox(mat4Mul(vp,m),m,turretColor,1);
+    drawBox(mat4Mul(vp,m),m,sandDark,1);
 
     // Turret bustle
     m=mat4Mul(mat4Trans(tx,ty+1.34*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,1.0*s),mat4Scale(1.15*s,0.45*s,0.9*s))));
@@ -3240,16 +3331,54 @@ function render(){
     drawBox(mat4Mul(vp,m),m,steel,1);
     m=mat4Mul(mat4Trans(tx,ty+1.47*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0.95*s,0,-0.45*s),mat4Scale(0.18*s,0.16*s,0.45*s))));
     drawBox(mat4Mul(vp,m),m,steel,1);
+
+    // Side armor blocks (ERA-like)
+    for(let i=0;i<7;i++){
+      const zz=-1.55*s+i*0.52*s;
+      m=mat4Mul(mat4Trans(tx,ty+0.68*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(-1.93*s,0,zz),mat4Scale(0.16*s,0.28*s,0.44*s))));
+      drawBox(mat4Mul(vp,m),m,dust,1);
+      m=mat4Mul(mat4Trans(tx,ty+0.68*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(1.93*s,0,zz),mat4Scale(0.16*s,0.28*s,0.44*s))));
+      drawBox(mat4Mul(vp,m),m,dust,1);
+    }
+
+    // Desert camouflage patches (simple procedural decals)
+    const camo=[
+      [-0.55,0.83,-1.0,0.82,0.05,0.92,sandLight],
+      [0.62,0.82,-0.2,0.72,0.05,0.85,sandDark],
+      [-0.45,0.82,0.85,0.65,0.05,0.75,sandLight],
+      [0.0,1.35,-0.55,1.0,0.05,0.72,sandDark],
+      [0.45,1.38,0.38,0.74,0.05,0.64,sandLight]
+    ];
+    for(const c of camo){
+      m=mat4Mul(mat4Trans(tx,ty+c[1]*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(c[0]*s,0,c[2]*s),mat4Scale(c[3]*s,c[4]*s,c[5]*s))));
+      drawBox(mat4Mul(vp,m),m,c[6],1);
+    }
+
+    // Turret rear cage/box detail
+    m=mat4Mul(mat4Trans(tx,ty+1.46*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(0,0,1.7*s),mat4Scale(1.05*s,0.42*s,0.2*s))));
+    drawBox(mat4Mul(vp,m),m,[0.42,0.4,0.36],1);
+    for(const sx of [-1,1]){
+      m=mat4Mul(mat4Trans(tx,ty+1.46*s,tz),mat4Mul(turretRot,mat4Mul(mat4Trans(sx*0.56*s,0,1.72*s),mat4Scale(0.05*s,0.46*s,0.25*s))));
+      drawBox(mat4Mul(vp,m),m,steel,1);
+    }
+
+    // Headlights + team strip
+    for(const sx of [-0.65,0.65]){
+      m=mat4Mul(mat4Trans(tx,ty+0.82*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(sx*s,0,-2.02*s),mat4Scale(0.2*s,0.2*s,0.08*s))));
+      drawBox(mat4Mul(vp,m),m,[0.95,0.95,0.82],0,0.18);
+    }
+    m=mat4Mul(mat4Trans(tx,ty+1.02*s,tz),mat4Mul(hullRot,mat4Mul(mat4Trans(0,0,-1.62*s),mat4Scale(0.55*s,0.06*s,0.06*s))));
+    drawBox(mat4Mul(vp,m),m,teamTint,1,0.08);
   }
 
   // Player tank
   if(gameRunning||explosions.some(e=>e.t<0.5)){
     if(player.hp>0){
       const pt=getTankTilt(player.x,player.z,player.angle);
-      drawTank(player.x,sampleGroundHeight(player.x,player.z),player.z,player.angle,player.turretAngle,
+      drawTank(player.x,sampleGroundHeight(player.x,player.z)+(player.flyHeight||0),player.z,player.angle,player.turretAngle,
         [0.28,0.33,0.2],
         [0.25,0.3,0.18],
-        [0.12,0.12,0.1],TANK_CLASSES[playerClass].barrels,1,pt.pitch,pt.roll);
+        [0.12,0.12,0.1],TANK_CLASSES[playerClass].barrels,isAdmin?ADMIN_TANK_SCALE:1,pt.pitch,pt.roll);
     }
   }
 
@@ -3270,7 +3399,7 @@ function render(){
   // HP bars for all tanks
   gl.disable(gl.DEPTH_TEST);
   gl.disable(gl.CULL_FACE);
-  function drawHpBar(tank,emptyCol){
+  function drawHpBar(tank,emptyCol,teamFillCol){
     const hpPct=tank.hp/tank.maxHp;
     const gy=sampleGroundHeight(tank.x,tank.z);
     const bs=1;
@@ -3281,14 +3410,14 @@ function render(){
     drawBox(mat4Mul(vp,m),m,emptyCol,0);
     if(hpPct>0.01){
       const fillW=barW*hpPct;
-      const hpColor=hpPct>0.6?[0.15,0.9,0.15]:hpPct>0.3?[1.0,0.8,0.1]:[1.0,0.15,0.15];
+      const hpColor=teamFillCol|| (hpPct>0.6?[0.15,0.9,0.15]:hpPct>0.3?[1.0,0.8,0.1]:[1.0,0.15,0.15]);
       const shiftX=(fillW-barW)/2;
       m=mat4Mul(mat4Trans(tank.x,gy+barY,tank.z),mat4Mul(mat4RotY(camYaw),mat4Mul(mat4Trans(shiftX,0,0),mat4Scale(fillW,barH,0.01))));
       drawBox(mat4Mul(vp,m),m,hpColor,0);
     }
   }
-  for(const a of allies){drawHpBar(a,[0.08,0.25,0.08]);}
-  for(const e of enemies){drawHpBar(e,[0.35,0.08,0.08]);}
+  for(const a of allies){drawHpBar(a,[0.08,0.25,0.08],[0.16,0.95,0.16]);}
+  for(const e of enemies){drawHpBar(e,[0.35,0.08,0.08],[0.95,0.18,0.18]);}
   gl.enable(gl.CULL_FACE);
   gl.enable(gl.DEPTH_TEST);
 
@@ -3448,7 +3577,7 @@ function render(){
     const cy=35+Math.sin(i*3.7)*5;
     const cw=8+Math.sin(i*2.3)*4;
     m=mat4Mul(mat4Trans(cx+player.x*0.1,cy,cz+player.z*0.1),mat4Scale(cw,1.5,cw*0.6));
-    drawBox(mat4Mul(vp,m),m,[0.95,0.95,0.98],0);
+    drawBox(mat4Mul(vp,m),m,[0.90,0.90,0.92],0);
   }
 
   // Minimap
@@ -3548,6 +3677,11 @@ function startGame(){
   document.getElementById('kills').textContent='0';
   updateHpBar();
   player.hp=player.maxHp;
+  syncAdminUI();
+  if(isAdmin){
+    playerInvincible=true;
+    showCombatEvent('ADMIN MODE АКТИВЕН','#7CFC00');
+  }
 }
 
 document.getElementById('startBtn').addEventListener('touchend',(e)=>{e.preventDefault();startGame();});
@@ -3559,6 +3693,150 @@ const onlineBtn=document.getElementById('onlineBtn');
 if(onlineBtn){
   onlineBtn.remove();
 }
+
+// ===== Monetization (быстрый старт) =====
+// ВСТАВЬ СВОИ ССЫЛКИ
+const MONETIZE={
+  buyPhone:'9026303200', // номер для попытки открыть личный чат в Telegram
+  tgUsername:'', // обязательно укажи username без @, чтобы всегда открывался твой профиль
+  profileUrl:'', // или прямая ссылка на профиль/чат, напр.: https://t.me/your_username
+  adminAccessCode:'', // секретный код для выдачи админ-режима через ссылку ?admin_code=...
+  buyUrl:'',
+  donateUrl:'', // сюда вставь РАБОЧУЮ ссылку на оплату (YooMoney/Тинькофф/SBP и т.д.)
+  contact:'tg://resolve?phone=9026303200'
+};
+
+function initAdminFromParams(){
+  try{
+    const p=new URLSearchParams(window.location.search||'');
+    const adminFlag=(p.get('admin')||'').toLowerCase();
+    const adminCode=p.get('admin_code')||p.get('ac')||'';
+    const byCode=!!(MONETIZE.adminAccessCode&&adminCode&&adminCode===MONETIZE.adminAccessCode);
+    if(adminFlag==='1'||adminFlag==='true'||byCode){
+      isAdmin=true;
+      localStorage.setItem('tank3dAdmin','1');
+    }else if(adminFlag==='0'||adminFlag==='false'){
+      isAdmin=false;
+      localStorage.removeItem('tank3dAdmin');
+    }
+    playerInvincible=!!isAdmin;
+    syncAdminUI();
+  }catch(e){}
+}
+
+function copyTextSafe(text){
+  if(!text)return;
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).catch(()=>{});
+    }
+  }catch(e){}
+}
+
+function openTelegramDialog(rawText){
+  const text=rawText||'';
+  const msg=encodeURIComponent(text);
+  const username=(MONETIZE.tgUsername||'').trim().replace('@','');
+  const profileUrl=(MONETIZE.profileUrl||'').trim();
+  const phone=(MONETIZE.buyPhone||'').replace(/[^\d+]/g,'');
+
+  // 1) СРАЗУ в твой профиль по username
+  if(username){
+    const w=window.open('https://t.me/'+username+'?text='+msg,'_blank');
+    if(!w){
+      try{window.location.href='tg://resolve?domain='+username+'&text='+msg;}catch(e){}
+    }
+    copyTextSafe(text);
+    return;
+  }
+
+  // 2) Прямая ссылка на твой профиль/чат
+  if(profileUrl){
+    const sep=profileUrl.includes('?')?'&':'?';
+    const url=profileUrl+sep+'text='+msg;
+    const w=window.open(url,'_blank');
+    if(!w){
+      try{window.location.href=url;}catch(e){}
+    }
+    copyTextSafe(text);
+    return;
+  }
+
+  // 3) Резерв: попытка открыть по телефону (если нет username)
+  try{window.location.href='tg://resolve?phone='+phone+'&text='+msg;}catch(e){}
+
+  // Без username/profileUrl браузер может открыть telegram.org.
+  // Поэтому для точного перехода в твой профиль обязательно заполни tgUsername.
+  copyTextSafe(text);
+}
+
+function openTelegramPurchaseChat(){
+  openTelegramDialog('Здравствуйте! Хочу купить админ-статус Tank3D за 124 000₽.');
+}
+
+function openTelegramDonateChat(){
+  openTelegramDialog('Здравствуйте! Не проходит кнопка доната в Tank3D. Пришлите, пожалуйста, рабочие реквизиты для оплаты.');
+}
+
+function reportCheaterToOwner(){
+  if(!isAdmin)return;
+  const nick=prompt('Ник читера:','');
+  if(nick===null)return;
+  const reason=prompt('Какой чит заметил?','');
+  if(reason===null)return;
+  const txt='Жалоба от админа Tank3D:\nНик: '+(nick||'не указан')+'\nПричина: '+(reason||'не указана')+'\nДата: '+new Date().toLocaleString();
+  openTelegramDialog(txt);
+  if(gameRunning)showCombatEvent('ЖАЛОБА ОТПРАВЛЕНА','#7dd3fc');
+}
+
+function isInvalidDonateUrl(url){
+  if(!url||!/^https?:\/\//i.test(url))return true;
+  // Явно ловим шаблон-заглушку и похожие нерабочие значения
+  if(/X{3,}/i.test(url))return true;
+  if(/4100X+/i.test(url))return true;
+  return false;
+}
+
+function openMoneyLink(url){
+  if(isInvalidDonateUrl(url)){
+    // Если ссылка не настроена/битая — ведём в личный чат, а не на ошибку оплаты
+    openTelegramDonateChat();
+    return;
+  }
+  const w=window.open(url,'_blank');
+  if(!w){
+    // popup blocker: запасной вариант
+    openTelegramDonateChat();
+  }
+}
+
+function bindMoneyButtons(){
+  const ids=[
+    ['buySourceBtn',()=>openTelegramPurchaseChat()],
+    ['buySourceBtnOver',()=>openTelegramPurchaseChat()],
+    ['donateBtn',()=>openMoneyLink(MONETIZE.donateUrl)],
+    ['donateBtnOver',()=>openMoneyLink(MONETIZE.donateUrl)]
+  ];
+  for(const it of ids){
+    const el=document.getElementById(it[0]);
+    if(el)el.addEventListener('click',it[1]);
+    if(el)el.addEventListener('touchend',(e)=>{e.preventDefault();it[1]();},{passive:false});
+  }
+}
+function bindAdminButtons(){
+  const reportBtn=document.getElementById('reportCheaterBtn');
+  if(reportBtn){
+    reportBtn.addEventListener('click',(e)=>{e.preventDefault();reportCheaterToOwner();});
+    reportBtn.addEventListener('touchend',(e)=>{e.preventDefault();reportCheaterToOwner();},{passive:false});
+  }
+}
+initAdminFromParams();
+bindMoneyButtons();
+bindAdminButtons();
+syncAdminUI();
+
+window.enableAdminMode=function(){setAdminMode(true,true);};
+window.disableAdminMode=function(){setAdminMode(false,true);};
 
 syncFireButtonVisibility();
 

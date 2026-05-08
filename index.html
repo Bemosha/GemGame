@@ -9,6 +9,10 @@
     body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font-family:Arial,sans-serif}
     canvas{display:block;width:100vw;height:100vh}
     #hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+    #nameLabels{position:fixed;inset:0;pointer-events:none;z-index:16}
+    .tankLabel{position:absolute;transform:translate(-50%,-50%);padding:2px 7px;border-radius:8px;
+      background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.28);font-size:12px;font-weight:bold;
+      color:#fff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,0.9)}
     #fsBtn{position:absolute;top:12px;right:180px;background:rgba(0,0,0,0.5);color:#fff;padding:4px 10px;
       border-radius:8px;font-size:18px;pointer-events:auto;cursor:pointer;z-index:30;border:1px solid rgba(255,255,255,0.3)}
     #fsBtn:active{background:rgba(255,255,255,0.2)}
@@ -27,6 +31,10 @@
     .setToggle.off{background:linear-gradient(135deg,#555,#333)}
     #score{position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:16px;pointer-events:none}
     #score span{color:#ff4444;font-weight:bold;font-size:22px}
+    #onlineInfo{position:absolute;top:62px;right:12px;background:rgba(0,0,0,0.5);color:#9ad1ff;padding:6px 10px;border-radius:10px;font-size:12px;pointer-events:none}
+    #onlineBtn{position:absolute;top:62px;right:170px;background:linear-gradient(135deg,#2d7ef7,#1357b8);color:#fff;border:1px solid rgba(255,255,255,0.35);
+      border-radius:10px;padding:6px 10px;font-size:12px;pointer-events:auto;cursor:pointer}
+    #onlineBtn.off{background:linear-gradient(135deg,#555,#333)}
     #hp{position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:14px;pointer-events:none}
     #hpBar{width:160px;height:14px;background:#333;border-radius:7px;margin-top:4px}
     #hpFill{width:100%;height:100%;background:#4f4;border-radius:7px;transition:width 0.3s}
@@ -110,9 +118,12 @@
 <body>
 <canvas id="c"></canvas>
 <div id="hud">
+  <div id="nameLabels"></div>
   <div id="fsBtn" onclick="toggleFS()">⛶</div>
   <div id="settingsBtn" title="Настройки">☰</div>
   <div id="score">Уничтожено: <span id="kills">0</span></div>
+  <div id="onlineInfo">ONLINE: OFF</div>
+  <button id="onlineBtn" class="off">Онлайн: ВЫКЛ</button>
   <div id="combatEvent" style="position:absolute;top:58px;left:50%;transform:translateX(-50%);padding:4px 10px;border-radius:8px;background:rgba(0,0,0,0.45);color:#fff;font-size:13px;font-weight:bold;opacity:0;transition:opacity .15s;pointer-events:none">РИКОШЕТ</div>
   <div id="hp">HP<div id="hpBar"><div id="hpFill"></div></div></div>
   <div id="ammoDisplay">30 / 30</div>
@@ -804,6 +815,146 @@ let groundScars=[];
 let bridges=[];
 let trenches=[];
 
+// ===== Online overlay (same graphics/gameplay, only other human players added) =====
+let onlineEnabled=false;
+let onlinePlayerId='';
+let onlinePeers=[];
+let onlineTick=0;
+const ONLINE_SEND_EVERY=6;
+const ONLINE_PULL_EVERY=8;
+let onlineServerUrl=(function(){
+  const saved=(localStorage.getItem('tank3dOnlineServer')||'').trim();
+  if(saved)return saved;
+  if(location&&location.protocol&&location.protocol.startsWith('http')){
+    return location.protocol+'//'+location.hostname+':8765';
+  }
+  return 'http://127.0.0.1:8765';
+})();
+let playerNickname=(localStorage.getItem('tank3dNick')||'').trim();
+let onlineNickname=(localStorage.getItem('tank3dOnlineNick')||playerNickname||'Игрок').trim()||(playerNickname||'Игрок');
+let nicknameAsked=false;
+let onlinePullInFlight=false;
+let onlineSendInFlight=false;
+
+function ensurePlayerNickname(){
+  if(playerNickname&&nicknameAsked)return true;
+  nicknameAsked=true;
+  const fallback='Игрок'+Math.floor(10+Math.random()*90);
+  const initial=(playerNickname||onlineNickname||fallback).slice(0,18);
+  const entered=prompt('Введи ник для игры:',initial);
+  if(entered===null)return false;
+  playerNickname=(entered||'').trim().slice(0,18)||initial||fallback;
+  onlineNickname=playerNickname;
+  localStorage.setItem('tank3dNick',playerNickname);
+  localStorage.setItem('tank3dOnlineNick',onlineNickname);
+  return true;
+}
+
+function setOnlineUi(text,on){
+  const info=document.getElementById('onlineInfo');
+  const btn=document.getElementById('onlineBtn');
+  if(info)info.textContent=text;
+  if(btn){
+    btn.textContent=on?'Онлайн: ВКЛ':'Онлайн: ВЫКЛ';
+    btn.classList.toggle('off',!on);
+  }
+}
+
+async function onlineApi(path,payload){
+  const r=await fetch(onlineServerUrl+path,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload||{})
+  });
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  return await r.json();
+}
+
+async function connectOnline(){
+  try{
+    if(!ensurePlayerNickname())return;
+    onlineNickname=playerNickname;
+    localStorage.setItem('tank3dOnlineNick',onlineNickname);
+
+    const srvPrompt=prompt('Адрес сервера (пример: http://127.0.0.1:8765):',onlineServerUrl)||onlineServerUrl;
+    onlineServerUrl=(srvPrompt||'').trim().replace(/\/+$/,'')||onlineServerUrl;
+    localStorage.setItem('tank3dOnlineServer',onlineServerUrl);
+
+    const j=await onlineApi('/join_online',{nickname:onlineNickname});
+    if(!j||!j.ok||!j.playerId)throw new Error('join failed');
+    onlinePlayerId=j.playerId;
+    onlinePeers=[];
+    onlineTick=0;
+    onlineEnabled=true;
+    setOnlineUi('ONLINE: ON • 0',true);
+    showCombatEvent('ОНЛАЙН ПОДКЛЮЧЕН','#7dd3fc');
+  }catch(e){
+    onlineEnabled=false;
+    onlinePlayerId='';
+    onlinePeers=[];
+    setOnlineUi('ONLINE: OFF',false);
+    showCombatEvent('ОНЛАЙН НЕ ДОСТУПЕН','#ff6b6b');
+  }
+}
+
+function disconnectOnline(){
+  onlineEnabled=false;
+  onlinePlayerId='';
+  onlinePeers=[];
+  onlinePullInFlight=false;
+  onlineSendInFlight=false;
+  setOnlineUi('ONLINE: OFF',false);
+}
+
+function toggleOnline(){
+  if(onlineEnabled)disconnectOnline();
+  else connectOnline();
+}
+
+function onlineSyncStep(){
+  if(!onlineEnabled||!onlinePlayerId)return;
+  onlineTick++;
+
+  if(!onlineSendInFlight&&onlineTick%ONLINE_SEND_EVERY===0){
+    onlineSendInFlight=true;
+    onlineApi('/presence',{
+      playerId:onlinePlayerId,
+      state:{
+        x:player.x,z:player.z,
+        angle:player.angle,turretAngle:player.turretAngle,
+        hp:player.hp,maxHp:player.maxHp,kills:kills
+      }
+    }).catch(()=>{}).finally(()=>{onlineSendInFlight=false;});
+  }
+
+  if(!onlinePullInFlight&&onlineTick%ONLINE_PULL_EVERY===0){
+    onlinePullInFlight=true;
+    onlineApi('/state_online',{playerId:onlinePlayerId}).then((res)=>{
+      if(!res||!res.ok)return;
+      const arr=Array.isArray(res.players)?res.players:[];
+      const now=performance.now();
+      const map=new Map(onlinePeers.map(p=>[p.id,p]));
+      for(const p of arr){
+        if(!p||!p.id)continue;
+        const cur=map.get(p.id)||{id:p.id,name:p.name||'Игрок'};
+        cur.name=p.name||cur.name||'Игрок';
+        cur.x=Number(p.x)||0;
+        cur.z=Number(p.z)||0;
+        cur.angle=Number(p.angle)||0;
+        cur.turretAngle=Number(p.turretAngle)||0;
+        cur.hp=Number(p.hp)||1;
+        cur.maxHp=Math.max(1,Number(p.maxHp)||1);
+        cur.lastSeen=now;
+        map.set(p.id,cur);
+      }
+      onlinePeers=[...map.values()].filter(p=>now-(p.lastSeen||0)<4500);
+      setOnlineUi('ONLINE: ON • '+onlinePeers.length,true);
+    }).catch(()=>{
+      setOnlineUi('ONLINE: ON • ...',true);
+    }).finally(()=>{onlinePullInFlight=false;});
+  }
+}
+
 function sampleGroundHeight(x,z){
   let h=0;
   // Квадратные земляные кочки
@@ -1150,7 +1301,8 @@ function spawnEnemy(){
     moveTimer:0,
     shootTimer:eshoot,
     team:'red',
-    kills:0,tankClass:randomAIClass(),boss:false,bulletDmg:1,bulletPen:1,ramCd:0,lastHitBy:null,armorFront:1,armorSide:0.8,armorRear:0.65
+    kills:0,tankClass:randomAIClass(),boss:false,bulletDmg:1,bulletPen:1,ramCd:0,lastHitBy:null,armorFront:1,armorSide:0.8,armorRear:0.65,
+    nickname:'Враг '+(Math.floor(Math.random()*90)+10)
   };
   applyClassStats(enemy,false);
   enemies.push(enemy);
@@ -1172,7 +1324,8 @@ function spawnAlly(){
     moveTimer:0,
     shootTimer:60+Math.random()*100,
     team:'green',
-    kills:0,tankClass:randomAIClass(),boss:false,bulletDmg:1,bulletPen:1,ramCd:0,lastHitBy:null,armorFront:1,armorSide:0.8,armorRear:0.65
+    kills:0,tankClass:randomAIClass(),boss:false,bulletDmg:1,bulletPen:1,ramCd:0,lastHitBy:null,armorFront:1,armorSide:0.8,armorRear:0.65,
+    nickname:'Союзник '+(Math.floor(Math.random()*90)+10)
   };
   applyClassStats(ally,false);
   allies.push(ally);
@@ -1792,6 +1945,9 @@ function showCombatEvent(text,color){
 function update(){
   updateMouseAimIndicator();
   if(!gameRunning||gamePaused)return;
+
+  // lightweight online sync (other real players)
+  onlineSyncStep();
 
   // Perf guard for weaker/mobile devices
   if(bullets.length>PERF.maxBullets)bullets.splice(0,bullets.length-PERF.maxBullets);
@@ -2713,6 +2869,62 @@ function render(){
   const vp=mat4Mul(proj,view);
   gl.uniform3fv(uEyePos,[eyeX,eyeY,eyeZ]);
 
+  // ===== 2D labels (nicknames above tanks) =====
+  const labelRoot=document.getElementById('nameLabels');
+  if(!render._labelPool)render._labelPool=[];
+  const labelPool=render._labelPool;
+  function projectWorldToScreen(x,y,z){
+    const cx=vp[0]*x+vp[4]*y+vp[8]*z+vp[12];
+    const cy=vp[1]*x+vp[5]*y+vp[9]*z+vp[13];
+    const cw=vp[3]*x+vp[7]*y+vp[11]*z+vp[15];
+    if(cw<=0.001)return null;
+    const ndcX=cx/cw;
+    const ndcY=cy/cw;
+    if(ndcX<-1.2||ndcX>1.2||ndcY<-1.2||ndcY>1.2)return null;
+    return{
+      x:(ndcX*0.5+0.5)*window.innerWidth,
+      y:(-ndcY*0.5+0.5)*window.innerHeight
+    };
+  }
+  function getLabel(i){
+    if(!labelPool[i]){
+      const el=document.createElement('div');
+      el.className='tankLabel';
+      el.style.display='none';
+      labelRoot.appendChild(el);
+      labelPool[i]=el;
+    }
+    return labelPool[i];
+  }
+  function hideLabels(from){
+    for(let i=from;i<labelPool.length;i++)labelPool[i].style.display='none';
+  }
+  function addLabel(i,text,x,y,z,color){
+    const p=projectWorldToScreen(x,y,z);
+    if(!p)return i;
+    const el=getLabel(i);
+    el.textContent=text;
+    el.style.left=p.x.toFixed(1)+'px';
+    el.style.top=p.y.toFixed(1)+'px';
+    el.style.color=color||'#fff';
+    el.style.display='block';
+    return i+1;
+  }
+  let labelCount=0;
+  if(gameRunning&&player&&player.hp>0){
+    labelCount=addLabel(labelCount,playerNickname||onlineNickname||'Игрок',player.x,sampleGroundHeight(player.x,player.z)+(player.flyHeight||0)+4.25,player.z,'#9fe8ff');
+    for(const a of allies){
+      labelCount=addLabel(labelCount,a.nickname||'Союзник',a.x,sampleGroundHeight(a.x,a.z)+3.95,a.z,'#8fff8f');
+    }
+    for(const e of enemies){
+      labelCount=addLabel(labelCount,e.nickname||'Враг',e.x,sampleGroundHeight(e.x,e.z)+3.95,e.z,'#ff9a9a');
+    }
+    for(const p of onlinePeers){
+      labelCount=addLabel(labelCount,p.name||'Игрок',p.x,sampleGroundHeight(p.x,p.z)+3.95,p.z,'#8ec5ff');
+    }
+  }
+  hideLabels(labelCount);
+
   // Ground base + broad tone layers
   let m=mat4Mul(mat4Trans(0,-0.22,0),mat4Scale(WORLD*2,0.44,WORLD*2));
   drawBox(mat4Mul(vp,m),m,[0.40,0.31,0.21],1);
@@ -3396,6 +3608,25 @@ function render(){
       [0.42,0.22,0.15],[0.38,0.2,0.13],[0.15,0.1,0.08],TANK_CLASSES[e.tankClass||'normal'].barrels,1,et.pitch,et.roll);
   }
 
+  // Online peers (human players from server relay)
+  for(const p of onlinePeers){
+    const pt=getTankTilt(p.x,p.z,p.angle||0);
+    drawTank(
+      p.x,
+      sampleGroundHeight(p.x,p.z),
+      p.z,
+      p.angle||0,
+      p.turretAngle||p.angle||0,
+      [0.2,0.28,0.42],
+      [0.18,0.24,0.36],
+      [0.1,0.1,0.12],
+      1,
+      1,
+      pt.pitch,
+      pt.roll
+    );
+  }
+
   // HP bars for all tanks
   gl.disable(gl.DEPTH_TEST);
   gl.disable(gl.CULL_FACE);
@@ -3418,6 +3649,7 @@ function render(){
   }
   for(const a of allies){drawHpBar(a,[0.08,0.25,0.08],[0.16,0.95,0.16]);}
   for(const e of enemies){drawHpBar(e,[0.35,0.08,0.08],[0.95,0.18,0.18]);}
+  for(const p of onlinePeers){drawHpBar(p,[0.08,0.12,0.3],[0.35,0.6,1.0]);}
   gl.enable(gl.CULL_FACE);
   gl.enable(gl.DEPTH_TEST);
 
@@ -3632,6 +3864,14 @@ function drawMinimap(){
     mctx.fill();
   }
 
+  // Online peers (blue dots)
+  mctx.fillStyle='#6ab4ff';
+  for(const p of onlinePeers){
+    mctx.beginPath();
+    mctx.arc(p.x*s+ox,p.z*s+oz,2.5,0,Math.PI*2);
+    mctx.fill();
+  }
+
   // Player (bright green with white border)
   mctx.fillStyle='#6f6';
   mctx.beginPath();
@@ -3659,6 +3899,7 @@ function loop(){
 
 // ===== Start =====
 function startGame(){
+  if(!ensurePlayerNickname())return;
   // Unlock audio on user gesture (required by mobile browsers)
   const ctx=getAudio();
   if(ctx.state==='suspended')ctx.resume();
@@ -3691,8 +3932,10 @@ document.getElementById('restartBtn').addEventListener('touchend',(e)=>{e.preven
 
 const onlineBtn=document.getElementById('onlineBtn');
 if(onlineBtn){
-  onlineBtn.remove();
+  onlineBtn.addEventListener('click',(e)=>{e.preventDefault();toggleOnline();});
+  onlineBtn.addEventListener('touchend',(e)=>{e.preventDefault();toggleOnline();},{passive:false});
 }
+setOnlineUi('ONLINE: OFF',false);
 
 // ===== Monetization (быстрый старт) =====
 // ВСТАВЬ СВОИ ССЫЛКИ

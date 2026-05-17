@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Танчики 3D</title>
+  <title>CORE ARMOR</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font-family:Arial,sans-serif}
@@ -56,6 +56,11 @@
     .btn{background:linear-gradient(135deg,#1e90ff,#0066cc);color:#fff;border:none;padding:14px 36px;font-size:18px;
       border-radius:30px;cursor:pointer;box-shadow:0 4px 15px rgba(30,144,255,0.25)}
     .btn:active{transform:scale(0.95)}
+    .btn.vip{background:linear-gradient(135deg,#a855f7,#7c3aed);box-shadow:0 4px 15px rgba(168,85,247,0.35)}
+    .btn.vip:active{background:linear-gradient(135deg,#b56bff,#8b45f8)}
+    #nickInput{width:min(320px,84vw);padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.35);
+      background:rgba(0,0,0,0.35);color:#fff;font-size:16px;outline:none;margin-bottom:12px}
+    #nickInput::placeholder{color:#b9c7d8}
     #startBtn{background:linear-gradient(135deg,#ff3b30,#c81d13);box-shadow:0 4px 15px rgba(255,59,48,0.35)}
     #startBtn:active{background:linear-gradient(135deg,#ff5a50,#df2f23)}
     .fs{font-size:56px;font-weight:bold;color:#ff4444;margin:8px 0}
@@ -113,6 +118,22 @@
       padding:4px 6px;cursor:pointer;text-align:center;transition:transform 0.15s;pointer-events:auto;width:74px}
     #tankCards,.tankCard{pointer-events:auto}
     .tankCard:active{transform:scale(0.93);background:rgba(100,255,100,0.15);border-color:#4f4}
+
+    #vipModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:42;
+      background:rgba(0,0,0,0.6);pointer-events:auto}
+    #vipPanel{width:min(520px,92vw);background:rgba(10,10,12,0.96);border:1px solid rgba(255,255,255,0.28);
+      border-radius:14px;padding:14px;color:#fff;box-shadow:0 12px 36px rgba(0,0,0,0.45)}
+    .vipTitle{font-size:20px;font-weight:bold;margin-bottom:6px;color:#e9d5ff}
+    .vipSub{font-size:13px;color:#c9ceda;margin-bottom:10px;line-height:1.45}
+    .vipGrid{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:10px}
+    .vipOption{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:10px}
+    .vipOption strong{display:block;font-size:15px;margin-bottom:3px}
+    .vipOption span{font-size:12px;color:#b7c0cf}
+    .vipPay{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 12px}
+    .vipPay label{display:flex;align-items:center;gap:6px;font-size:13px;color:#e5e7eb}
+    .vipActions{display:flex;gap:8px;flex-wrap:wrap}
+    .vipActions .btn{padding:10px 14px;font-size:14px;border-radius:12px}
+    #vipCloseBtn{background:linear-gradient(135deg,#555,#333)}
   </style>
 </head>
 <body>
@@ -156,15 +177,13 @@
 </div>
   <div id="startScreen">
   <div class="emoji-t">🔫</div>
-  <h1 id="title">Танчики 3D</h1>
+  <h1 id="title">CORE ARMOR</h1>
   <p class="sub">Води пальцем — управляй танком. Кнопка ОГОНЬ — стреляй! Уничтожай вражеские танки!</p>
+  <input id="nickInput" maxlength="18" placeholder="Введи ник" autocomplete="nickname" />
   <button class="btn" id="startBtn">В бой!</button>
   <div id="moneyPanel" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:420px">
-    <button class="btn" id="buySourceBtn" style="padding:10px 16px;font-size:14px;background:linear-gradient(135deg,#22c55e,#15803d)">Купить админ-статус • 124 000₽</button>
+    <button class="btn vip" id="vipBtn" style="padding:10px 16px;font-size:14px">VIP</button>
     <button class="btn" id="donateBtn" style="padding:10px 16px;font-size:14px;background:linear-gradient(135deg,#f59e0b,#b45309)">Поддержать проект • 199₽</button>
-  </div>
-  <div style="margin-top:8px;color:#9fd2ff;font-size:12px;max-width:420px;line-height:1.35">
-    Покупка админ-статуса: маленький неуязвимый танк + контроль читеров — 124 000₽
   </div>
   <!-- three fire icons next to start button -->
   <div id="startFires" style="margin-top:12px;display:flex;gap:8px">
@@ -173,6 +192,34 @@
     <div class="start-fire" style="width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#ffd16a,#ff4500);box-shadow:0 0 8px rgba(255,100,0,0.8);animation:blink 1.4s infinite"></div>
   </div>
   <canvas id="confettiCanvas" style="position:absolute;inset:0;pointer-events:none;z-index:21"></canvas>
+</div>
+
+<div id="vipModal" aria-hidden="true">
+  <div id="vipPanel">
+    <div class="vipTitle">VIP магазин</div>
+    <div class="vipSub">Выбери улучшение и способ оплаты. После нажатия откроется Telegram с готовой заявкой владельцу.</div>
+    <div class="vipGrid">
+      <div class="vipOption">
+        <strong>1) Тройная пушка — 50₽</strong>
+        <span>Три ствола вместо одного.</span>
+      </div>
+      <div class="vipOption">
+        <strong>2) Убийство с 1 раза — 55₽</strong>
+        <span>Максимальный урон по цели.</span>
+      </div>
+    </div>
+    <div style="font-size:13px;color:#dbeafe;margin-bottom:6px">Где оплатить:</div>
+    <div class="vipPay">
+      <label><input type="radio" name="vipPayMethod" value="СБП" checked /> СБП</label>
+      <label><input type="radio" name="vipPayMethod" value="Карта (через платёжный сервис)" /> Карта</label>
+    </div>
+    <div style="font-size:12px;color:#94a3b8;margin-bottom:10px">⚠ Для безопасности игра не запрашивает номер карты и CVC. Только заявка в Telegram.</div>
+    <div class="vipActions">
+      <button class="btn" id="vipTripleBtn">Купить «Тройная пушка»</button>
+      <button class="btn" id="vipOneShotBtn">Купить «Убийство с 1 раза»</button>
+      <button class="btn" id="vipCloseBtn">Закрыть</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -263,7 +310,6 @@
   <p class="bs" id="bestKills">Лучший: 0</p>
   <button class="btn" id="restartBtn">Ещё раз!</button>
   <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-    <button class="btn" id="buySourceBtnOver" style="padding:9px 14px;font-size:13px;background:linear-gradient(135deg,#22c55e,#15803d)">Купить админ-статус • 124 000₽</button>
     <button class="btn" id="donateBtnOver" style="padding:9px 14px;font-size:13px;background:linear-gradient(135deg,#f59e0b,#b45309)">Донат • 199₽</button>
   </div>
 </div>
@@ -275,6 +321,8 @@ const gl = canvas.getContext('webgl', {antialias:true, alpha:false});
 if(!gl){alert('WebGL не поддерживается');throw new Error('no webgl')}
 
 const IS_MOBILE=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+const TARGET_RENDER_WIDTH=2560;
+const TARGET_RENDER_HEIGHT=1440;
 const PERF={
   renderScale:IS_MOBILE?0.72:1,
   envMul:IS_MOBILE?0.55:1,
@@ -286,9 +334,9 @@ const PERF={
 };
 
 function resize(){
-  const scale=PERF.renderScale;
-  canvas.width = Math.max(1,Math.floor(window.innerWidth*scale));
-  canvas.height = Math.max(1,Math.floor(window.innerHeight*scale));
+  // Фиксированное внутреннее разрешение рендера
+  canvas.width = TARGET_RENDER_WIDTH;
+  canvas.height = TARGET_RENDER_HEIGHT;
   canvas.style.width=window.innerWidth+'px';
   canvas.style.height=window.innerHeight+'px';
   gl.viewport(0,0,canvas.width,canvas.height);
@@ -835,15 +883,86 @@ let onlineNickname=(localStorage.getItem('tank3dOnlineNick')||playerNickname||'�
 let nicknameAsked=false;
 let onlinePullInFlight=false;
 let onlineSendInFlight=false;
+let onlineConnecting=false;
+let lastOnlineBanNoticeTs=0;
+
+function formatBanUntil(untilTs){
+  const ts=Number(untilTs||0);
+  if(!ts||!isFinite(ts))return 'неизвестно';
+  try{
+    return new Date(ts*1000).toLocaleString();
+  }catch(e){
+    return 'неизвестно';
+  }
+}
+
+function notifyOnlineBan(res){
+  const now=Date.now();
+  if(now-lastOnlineBanNoticeTs<1200)return;
+  lastOnlineBanNoticeTs=now;
+  const untilText=formatBanUntil(res&&res.untilTs);
+  disconnectOnline();
+  showCombatEvent('ВЫ ЗАБАНЕНЫ','#ff6b6b');
+  alert('Вы забанены до: '+untilText);
+}
+
+function openOnlineBanDialog(){
+  if(!isAdmin){
+    if(gameRunning)showCombatEvent('БАН ДОСТУПЕН ТОЛЬКО АДМИНУ','#ffb347');
+    return;
+  }
+  if(!onlineEnabled||!onlinePlayerId){
+    if(gameRunning)showCombatEvent('СНАЧАЛА ВКЛЮЧИ ОНЛАЙН','#ffb347');
+    return;
+  }
+
+  const nickRaw=prompt('Ник игрока для бана:','');
+  if(nickRaw===null)return;
+  const targetNickname=(nickRaw||'').trim().slice(0,18);
+  if(!targetNickname){
+    alert('Ник не указан');
+    return;
+  }
+
+  const minsRaw=prompt('Длительность бана (в минутах):','10');
+  if(minsRaw===null)return;
+  const durationMinutes=parseFloat(String(minsRaw||'').replace(',','.'));
+  if(!isFinite(durationMinutes)||durationMinutes<=0){
+    alert('Неверное время бана');
+    return;
+  }
+
+  onlineApi('/ban_online',{
+    playerId:onlinePlayerId,
+    admin:true,
+    targetNickname,
+    durationMinutes
+  }).then((res)=>{
+    if(!res||!res.ok){
+      const msg=(res&&res.error)?('Ошибка: '+res.error):'Не удалось выдать бан';
+      alert(msg);
+      if(gameRunning)showCombatEvent('БАН НЕ ВЫДАН','#ff6b6b');
+      return;
+    }
+    const untilText=formatBanUntil(res.untilTs);
+    if(gameRunning)showCombatEvent('БАН ВЫДАН: '+targetNickname,'#ff6b6b');
+    alert('Игрок '+targetNickname+' забанен до: '+untilText);
+  }).catch(()=>{
+    alert('Сервер недоступен');
+    if(gameRunning)showCombatEvent('СЕРВЕР НЕДОСТУПЕН','#ff6b6b');
+  });
+}
 
 function ensurePlayerNickname(){
-  if(playerNickname&&nicknameAsked)return true;
+  const nickInput=document.getElementById('nickInput');
+  const entered=(nickInput&&nickInput.value?nickInput.value:'').trim().slice(0,18);
+  if(!entered&&!(playerNickname||'').trim()){
+    alert('Введи ник перед стартом');
+    return false;
+  }
   nicknameAsked=true;
-  const fallback='Игрок'+Math.floor(10+Math.random()*90);
-  const initial=(playerNickname||onlineNickname||fallback).slice(0,18);
-  const entered=prompt('Введи ник для игры:',initial);
-  if(entered===null)return false;
-  playerNickname=(entered||'').trim().slice(0,18)||initial||fallback;
+  playerNickname=(entered||(playerNickname||'').trim()).slice(0,18);
+  if(nickInput)nickInput.value=playerNickname;
   onlineNickname=playerNickname;
   localStorage.setItem('tank3dNick',playerNickname);
   localStorage.setItem('tank3dOnlineNick',onlineNickname);
@@ -871,16 +990,18 @@ async function onlineApi(path,payload){
 }
 
 async function connectOnline(){
+  if(onlineEnabled||onlineConnecting)return;
+  onlineConnecting=true;
   try{
-    if(!ensurePlayerNickname())return;
+    ensurePlayerNickname();
     onlineNickname=playerNickname;
     localStorage.setItem('tank3dOnlineNick',onlineNickname);
 
-    const srvPrompt=prompt('Адрес сервера (пример: http://127.0.0.1:8765):',onlineServerUrl)||onlineServerUrl;
-    onlineServerUrl=(srvPrompt||'').trim().replace(/\/+$/,'')||onlineServerUrl;
-    localStorage.setItem('tank3dOnlineServer',onlineServerUrl);
-
     const j=await onlineApi('/join_online',{nickname:onlineNickname});
+    if(j&&j.banned){
+      notifyOnlineBan(j);
+      throw new Error('banned');
+    }
     if(!j||!j.ok||!j.playerId)throw new Error('join failed');
     onlinePlayerId=j.playerId;
     onlinePeers=[];
@@ -894,6 +1015,8 @@ async function connectOnline(){
     onlinePeers=[];
     setOnlineUi('ONLINE: OFF',false);
     showCombatEvent('ОНЛАЙН НЕ ДОСТУПЕН','#ff6b6b');
+  }finally{
+    onlineConnecting=false;
   }
 }
 
@@ -924,12 +1047,18 @@ function onlineSyncStep(){
         angle:player.angle,turretAngle:player.turretAngle,
         hp:player.hp,maxHp:player.maxHp,kills:kills
       }
+    }).then((res)=>{
+      if(res&&res.banned)notifyOnlineBan(res);
     }).catch(()=>{}).finally(()=>{onlineSendInFlight=false;});
   }
 
   if(!onlinePullInFlight&&onlineTick%ONLINE_PULL_EVERY===0){
     onlinePullInFlight=true;
     onlineApi('/state_online',{playerId:onlinePlayerId}).then((res)=>{
+      if(res&&res.banned){
+        notifyOnlineBan(res);
+        return;
+      }
       if(!res||!res.ok)return;
       const arr=Array.isArray(res.players)?res.players:[];
       const now=performance.now();
@@ -944,6 +1073,7 @@ function onlineSyncStep(){
         cur.turretAngle=Number(p.turretAngle)||0;
         cur.hp=Number(p.hp)||1;
         cur.maxHp=Math.max(1,Number(p.maxHp)||1);
+        cur.banMarkUntilMs=Math.max(0,Number(p.banMarkUntilMs)||0);
         cur.lastSeen=now;
         map.set(p.id,cur);
       }
@@ -1585,6 +1715,12 @@ function toggleSettingsMenu(){
 
 window.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
+
+  // Быстрый бан по клавише "-" (минус) — только для админа
+  if((e.code==='Minus'||e.key==='-')&&gameRunning){
+    e.preventDefault();
+    openOnlineBanDialog();
+  }
 
   // Полёт танка по кнопке N (поддержка латиницы и кириллицы)
   if(gameRunning&&(e.code==='KeyN'||e.code==='KeyY'||e.key==='n'||e.key==='N'||e.key==='т'||e.key==='Т'||e.key==='н'||e.key==='Н')){
@@ -2921,6 +3057,9 @@ function render(){
     }
     for(const p of onlinePeers){
       labelCount=addLabel(labelCount,p.name||'Игрок',p.x,sampleGroundHeight(p.x,p.z)+3.95,p.z,'#8ec5ff');
+      if((Number(p.banMarkUntilMs)||0)>Date.now()){
+        labelCount=addLabel(labelCount,'БАН',p.x,sampleGroundHeight(p.x,p.z)+5.1,p.z,'#ff4b4b');
+      }
     }
   }
   hideLabels(labelCount);
@@ -3923,6 +4062,9 @@ function startGame(){
     playerInvincible=true;
     showCombatEvent('ADMIN MODE АКТИВЕН','#7CFC00');
   }
+
+  // Онлайн включается автоматически при старте игры
+  if(!onlineEnabled)connectOnline();
 }
 
 document.getElementById('startBtn').addEventListener('touchend',(e)=>{e.preventDefault();startGame();});
@@ -3936,6 +4078,23 @@ if(onlineBtn){
   onlineBtn.addEventListener('touchend',(e)=>{e.preventDefault();toggleOnline();},{passive:false});
 }
 setOnlineUi('ONLINE: OFF',false);
+
+// Заполняем поле ника сохранённым значением
+(function initNickInput(){
+  const nickInput=document.getElementById('nickInput');
+  if(!nickInput)return;
+  const initial=(playerNickname||onlineNickname||'').trim().slice(0,18);
+  if(initial)nickInput.value=initial;
+  nickInput.addEventListener('input',()=>{
+    nickInput.value=(nickInput.value||'').replace(/\s+/g,' ').slice(0,18);
+  });
+  nickInput.addEventListener('keydown',(e)=>{
+    if(e.key==='Enter'){
+      e.preventDefault();
+      startGame();
+    }
+  });
+})();
 
 // ===== Monetization (быстрый старт) =====
 // ВСТАВЬ СВОИ ССЫЛКИ
@@ -4013,12 +4172,40 @@ function openTelegramDialog(rawText){
   copyTextSafe(text);
 }
 
-function openTelegramPurchaseChat(){
-  openTelegramDialog('Здравствуйте! Хочу купить админ-статус Tank3D за 124 000₽.');
-}
-
 function openTelegramDonateChat(){
   openTelegramDialog('Здравствуйте! Не проходит кнопка доната в Tank3D. Пришлите, пожалуйста, рабочие реквизиты для оплаты.');
+}
+
+function getVipPayMethod(){
+  const checked=document.querySelector('input[name="vipPayMethod"]:checked');
+  return checked?checked.value:'СБП';
+}
+
+function openVipModal(){
+  const modal=document.getElementById('vipModal');
+  if(!modal)return;
+  modal.style.display='flex';
+  modal.setAttribute('aria-hidden','false');
+}
+
+function closeVipModal(){
+  const modal=document.getElementById('vipModal');
+  if(!modal)return;
+  modal.style.display='none';
+  modal.setAttribute('aria-hidden','true');
+}
+
+function requestVipInTelegram(productName,priceRub){
+  const method=getVipPayMethod();
+  const msg=[
+    'Здравствуйте, я хочу купить премиум в Tank3D.',
+    'Товар: '+productName,
+    'Цена: '+priceRub+'₽',
+    'Способ оплаты: '+method,
+    'Ник в игре: '+((playerNickname||onlineNickname||'не указан').trim()||'не указан')
+  ].join('\n');
+  openTelegramDialog(msg);
+  closeVipModal();
 }
 
 function reportCheaterToOwner(){
@@ -4055,8 +4242,6 @@ function openMoneyLink(url){
 
 function bindMoneyButtons(){
   const ids=[
-    ['buySourceBtn',()=>openTelegramPurchaseChat()],
-    ['buySourceBtnOver',()=>openTelegramPurchaseChat()],
     ['donateBtn',()=>openMoneyLink(MONETIZE.donateUrl)],
     ['donateBtnOver',()=>openMoneyLink(MONETIZE.donateUrl)]
   ];
@@ -4065,6 +4250,40 @@ function bindMoneyButtons(){
     if(el)el.addEventListener('click',it[1]);
     if(el)el.addEventListener('touchend',(e)=>{e.preventDefault();it[1]();},{passive:false});
   }
+}
+
+function bindVipButtons(){
+  const vipBtn=document.getElementById('vipBtn');
+  const vipCloseBtn=document.getElementById('vipCloseBtn');
+  const vipTripleBtn=document.getElementById('vipTripleBtn');
+  const vipOneShotBtn=document.getElementById('vipOneShotBtn');
+  const vipModal=document.getElementById('vipModal');
+  const vipPanel=document.getElementById('vipPanel');
+
+  if(vipBtn){
+    vipBtn.addEventListener('click',(e)=>{e.preventDefault();openVipModal();});
+    vipBtn.addEventListener('touchend',(e)=>{e.preventDefault();openVipModal();},{passive:false});
+  }
+  if(vipCloseBtn){
+    vipCloseBtn.addEventListener('click',(e)=>{e.preventDefault();closeVipModal();});
+    vipCloseBtn.addEventListener('touchend',(e)=>{e.preventDefault();closeVipModal();},{passive:false});
+  }
+  if(vipTripleBtn){
+    vipTripleBtn.addEventListener('click',(e)=>{e.preventDefault();requestVipInTelegram('Тройная пушка',50);});
+    vipTripleBtn.addEventListener('touchend',(e)=>{e.preventDefault();requestVipInTelegram('Тройная пушка',50);},{passive:false});
+  }
+  if(vipOneShotBtn){
+    vipOneShotBtn.addEventListener('click',(e)=>{e.preventDefault();requestVipInTelegram('Убийство с 1 раза',55);});
+    vipOneShotBtn.addEventListener('touchend',(e)=>{e.preventDefault();requestVipInTelegram('Убийство с 1 раза',55);},{passive:false});
+  }
+  if(vipModal&&vipPanel){
+    vipModal.addEventListener('click',(e)=>{
+      if(e.target===vipModal)closeVipModal();
+    });
+  }
+  document.addEventListener('keydown',(e)=>{
+    if(e.key==='Escape')closeVipModal();
+  });
 }
 function bindAdminButtons(){
   const reportBtn=document.getElementById('reportCheaterBtn');
@@ -4075,6 +4294,7 @@ function bindAdminButtons(){
 }
 initAdminFromParams();
 bindMoneyButtons();
+bindVipButtons();
 bindAdminButtons();
 syncAdminUI();
 

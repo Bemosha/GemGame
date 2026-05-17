@@ -6,17 +6,23 @@
   <title>CORE ARMOR</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --safe-top:env(safe-area-inset-top,0px);
+      --safe-right:env(safe-area-inset-right,0px);
+      --safe-bottom:env(safe-area-inset-bottom,0px);
+      --safe-left:env(safe-area-inset-left,0px);
+    }
     body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font-family:Arial,sans-serif}
-    canvas{display:block;width:100vw;height:100vh}
+    canvas{display:block;width:100vw;height:100dvh}
     #hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
     #nameLabels{position:fixed;inset:0;pointer-events:none;z-index:16}
     .tankLabel{position:absolute;transform:translate(-50%,-50%);padding:2px 7px;border-radius:8px;
       background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.28);font-size:12px;font-weight:bold;
       color:#fff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,0.9)}
-    #fsBtn{position:absolute;top:12px;right:180px;background:rgba(0,0,0,0.5);color:#fff;padding:4px 10px;
+    #fsBtn{position:absolute;top:calc(12px + var(--safe-top));right:calc(180px + var(--safe-right));background:rgba(0,0,0,0.5);color:#fff;padding:4px 10px;
       border-radius:8px;font-size:18px;pointer-events:auto;cursor:pointer;z-index:30;border:1px solid rgba(255,255,255,0.3)}
     #fsBtn:active{background:rgba(255,255,255,0.2)}
-    #settingsBtn{position:absolute;top:12px;left:12px;width:42px;height:42px;background:rgba(0,0,0,0.55);color:#fff;
+    #settingsBtn{position:absolute;top:calc(12px + var(--safe-top));left:calc(12px + var(--safe-left));width:42px;height:42px;background:rgba(0,0,0,0.55);color:#fff;
       border-radius:10px;font-size:22px;pointer-events:auto;cursor:pointer;z-index:31;border:1px solid rgba(255,255,255,0.35);
       display:flex;align-items:center;justify-content:center;line-height:1}
     #settingsBtn:active{background:rgba(255,255,255,0.2)}
@@ -29,17 +35,17 @@
     .setToggle{background:linear-gradient(135deg,#2d7ef7,#1357b8);border:1px solid rgba(255,255,255,0.35);color:#fff;
       border-radius:10px;padding:6px 10px;font-size:13px;cursor:pointer;min-width:74px}
     .setToggle.off{background:linear-gradient(135deg,#555,#333)}
-    #score{position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:16px;pointer-events:none}
+    #score{position:absolute;top:calc(12px + var(--safe-top));right:calc(12px + var(--safe-right));background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:16px;pointer-events:none}
     #score span{color:#ff4444;font-weight:bold;font-size:22px}
-    #onlineInfo{position:absolute;top:62px;right:12px;background:rgba(0,0,0,0.5);color:#9ad1ff;padding:6px 10px;border-radius:10px;font-size:12px;pointer-events:none}
-    #onlineBtn{position:absolute;top:62px;right:170px;background:linear-gradient(135deg,#2d7ef7,#1357b8);color:#fff;border:1px solid rgba(255,255,255,0.35);
+    #onlineInfo{position:absolute;top:calc(62px + var(--safe-top));right:calc(12px + var(--safe-right));background:rgba(0,0,0,0.5);color:#9ad1ff;padding:6px 10px;border-radius:10px;font-size:12px;pointer-events:none}
+    #onlineBtn{position:absolute;top:calc(62px + var(--safe-top));right:calc(170px + var(--safe-right));background:linear-gradient(135deg,#2d7ef7,#1357b8);color:#fff;border:1px solid rgba(255,255,255,0.35);
       border-radius:10px;padding:6px 10px;font-size:12px;pointer-events:auto;cursor:pointer}
     #onlineBtn.off{background:linear-gradient(135deg,#555,#333)}
-    #hp{position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:14px;pointer-events:none}
+    #hp{position:absolute;top:calc(12px + var(--safe-top));left:calc(12px + var(--safe-left));background:rgba(0,0,0,0.5);color:#fff;padding:8px 16px;border-radius:12px;font-size:14px;pointer-events:none}
     #hpBar{width:160px;height:14px;background:#333;border-radius:7px;margin-top:4px}
     #hpFill{width:100%;height:100%;background:#4f4;border-radius:7px;transition:width 0.3s}
     @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
-    #joystickArea{position:absolute;bottom:20px;left:20px;width:150px;height:150px;pointer-events:auto}
+    #joystickArea{position:absolute;bottom:calc(20px + var(--safe-bottom));left:calc(20px + var(--safe-left));width:150px;height:150px;pointer-events:auto}
     #joystickBase{width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);
       position:absolute;bottom:15px;left:15px}
     #joystickKnob{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,0.35);border:2px solid rgba(255,255,255,0.4);
@@ -65,7 +71,7 @@
     #startBtn:active{background:linear-gradient(135deg,#ff5a50,#df2f23)}
     .fs{font-size:56px;font-weight:bold;color:#ff4444;margin:8px 0}
     .bs{font-size:15px;color:#888;margin-bottom:20px}
-    #minimap{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);width:100px;height:100px;
+    #minimap{position:absolute;bottom:calc(50px + var(--safe-bottom));left:50%;transform:translateX(-50%);width:100px;height:100px;
       background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);border-radius:8px;pointer-events:none}
     #tankChoiceScreen{position:fixed;top:0;left:0;width:100%;height:50vh;
       display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:25;color:#fff;text-align:center;
@@ -75,33 +81,33 @@
     .tankCard:active{transform:scale(0.93);background:rgba(100,255,100,0.15);border-color:#4f4}
     .tcName{color:#fff;font-weight:bold;font-size:13px;margin-top:4px}
     .tcDesc{color:#aaa;font-size:10px;margin-top:2px}
-    #bottomBars{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:8px;
+    #bottomBars{position:absolute;bottom:calc(8px + var(--safe-bottom));left:50%;transform:translateX(-50%);display:flex;gap:8px;
       background:rgba(0,0,0,0.6);padding:6px 14px;border-radius:12px;pointer-events:none;z-index:11}
     .barBox{text-align:center;font-size:11px;color:#aaa}
     .barBox .barLabel{margin-bottom:2px;font-weight:bold}
     .barTrack{width:100px;height:10px;background:#333;border-radius:5px}
     .barFill{height:100%;border-radius:5px;transition:width 0.3s}
-    #ammoDisplay{position:absolute;bottom:120px;right:22px;background:rgba(0,0,0,0.6);color:#4f4;padding:6px 14px;
+    #ammoDisplay{position:absolute;bottom:calc(120px + var(--safe-bottom));right:calc(22px + var(--safe-right));background:rgba(0,0,0,0.6);color:#4f4;padding:6px 14px;
       border-radius:10px;font-size:15px;font-weight:bold;pointer-events:none;text-align:center;min-width:80px}
-    #fireBtn{position:absolute;right:20px;bottom:28px;width:92px;height:92px;border-radius:50%;
+    #fireBtn{position:absolute;right:calc(20px + var(--safe-right));bottom:calc(28px + var(--safe-bottom));width:92px;height:92px;border-radius:50%;
       background:radial-gradient(circle at 35% 30%,#ff7b6b,#c81d13);border:2px solid rgba(255,255,255,0.45);
       color:#fff;font-weight:bold;font-size:17px;display:flex;align-items:center;justify-content:center;
       pointer-events:auto;user-select:none;-webkit-user-select:none;touch-action:none;box-shadow:0 8px 22px rgba(200,29,19,0.4)}
     #fireBtn:active{transform:scale(0.95);filter:brightness(1.08)}
-    #pauseBtnMobile{position:absolute;right:24px;bottom:134px;width:44px;height:44px;border-radius:50%;
+    #pauseBtnMobile{position:absolute;right:calc(24px + var(--safe-right));bottom:calc(134px + var(--safe-bottom));width:44px;height:44px;border-radius:50%;
       background:rgba(0,0,0,0.55);border:2px solid rgba(255,255,255,0.42);color:#fff;font-size:22px;font-weight:bold;
       display:none;align-items:center;justify-content:center;pointer-events:auto;user-select:none;-webkit-user-select:none;
       touch-action:none;z-index:14;box-shadow:0 5px 14px rgba(0,0,0,0.35)}
     #pauseBtnMobile:active{transform:scale(0.94);background:rgba(255,255,255,0.2)}
-    #adminBadge{position:absolute;top:62px;left:12px;background:linear-gradient(135deg,#16a34a,#166534);color:#fff;
+    #adminBadge{position:absolute;top:calc(62px + var(--safe-top));left:calc(12px + var(--safe-left));background:linear-gradient(135deg,#16a34a,#166534);color:#fff;
       padding:6px 10px;border-radius:10px;font-size:12px;font-weight:bold;display:none;pointer-events:none;
       border:1px solid rgba(255,255,255,0.35);box-shadow:0 4px 14px rgba(22,163,74,0.35)}
-    #reportCheaterBtn{position:absolute;top:62px;right:12px;background:linear-gradient(135deg,#f97316,#c2410c);color:#fff;
+    #reportCheaterBtn{position:absolute;top:calc(62px + var(--safe-top));right:calc(12px + var(--safe-right));background:linear-gradient(135deg,#f97316,#c2410c);color:#fff;
       padding:7px 12px;border-radius:10px;font-size:12px;font-weight:bold;display:none;pointer-events:auto;cursor:pointer;
       border:1px solid rgba(255,255,255,0.35);box-shadow:0 4px 14px rgba(194,65,12,0.35)}
     #reportCheaterBtn:active{transform:scale(0.97)}
     #ammoDisplay.reloading{color:#fa0;animation:blink 0.5s infinite}
-    #upgradeScreen{position:fixed;right:10px;bottom:10px;width:min(320px,92vw);height:auto;max-height:30vh;display:none;flex-direction:column;
+    #upgradeScreen{position:fixed;right:calc(10px + var(--safe-right));bottom:calc(10px + var(--safe-bottom));width:min(320px,92vw);height:auto;max-height:30vh;display:none;flex-direction:column;
       align-items:center;justify-content:flex-start;z-index:26;color:#fff;text-align:center;
       background:rgba(0,0,0,0.65);border:1px solid rgba(100,180,255,0.35);border-radius:12px;padding:8px 6px;pointer-events:none}
     .upCard{background:rgba(255,255,255,0.08);border:2px solid rgba(100,180,255,0.4);border-radius:10px;
@@ -111,7 +117,7 @@
     .upIcon{font-size:22px}
     .upName{color:#fff;font-weight:bold;font-size:11px;margin-top:3px}
     .upVal{color:#4af;font-size:10px;margin-top:1px}
-    #tankChoiceScreen{position:fixed;left:10px;bottom:10px;width:min(330px,92vw);height:auto;max-height:32vh;
+    #tankChoiceScreen{position:fixed;left:calc(10px + var(--safe-left));bottom:calc(10px + var(--safe-bottom));width:min(330px,92vw);height:auto;max-height:32vh;
       display:flex;flex-direction:column;align-items:center;justify-content:flex-start;z-index:25;color:#fff;text-align:center;
       background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.28);border-radius:12px;padding:8px 6px;pointer-events:none}
     .tankCard{background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.3);border-radius:10px;
@@ -134,6 +140,29 @@
     .vipActions{display:flex;gap:8px;flex-wrap:wrap}
     .vipActions .btn{padding:10px 14px;font-size:14px;border-radius:12px}
     #vipCloseBtn{background:linear-gradient(135deg,#555,#333)}
+
+    @media (max-width:900px){
+      #score{font-size:14px;padding:7px 11px;max-width:44vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      #score span{font-size:18px}
+      #hp{padding:7px 10px;font-size:12px;max-width:52vw}
+      #hpBar{width:120px;height:11px}
+      #onlineInfo{display:none}
+      #onlineBtn{top:calc(58px + var(--safe-top));right:calc(10px + var(--safe-right));font-size:11px;padding:5px 8px}
+      #fsBtn{right:calc(114px + var(--safe-right));font-size:16px;padding:4px 8px}
+      #settingsBtn{width:38px;height:38px;font-size:20px}
+      #combatEvent{top:calc(54px + var(--safe-top))!important;font-size:12px!important;max-width:64vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .tankLabel{font-size:11px;padding:2px 6px}
+
+      #joystickArea{width:132px;height:132px;left:calc(10px + var(--safe-left));bottom:calc(18px + var(--safe-bottom))}
+      #joystickBase{width:108px;height:108px;bottom:12px;left:12px}
+      #joystickKnob{width:44px;height:44px}
+      #fireBtn{width:88px;height:88px;font-size:14px;right:calc(12px + var(--safe-right));bottom:calc(18px + var(--safe-bottom))}
+      #pauseBtnMobile{right:calc(16px + var(--safe-right));bottom:calc(116px + var(--safe-bottom))}
+      #ammoDisplay{right:calc(12px + var(--safe-right));bottom:calc(106px + var(--safe-bottom));font-size:13px;padding:5px 10px;min-width:66px}
+      #minimap{width:96px;height:96px;bottom:calc(44px + var(--safe-bottom))}
+      #bottomBars{bottom:calc(4px + var(--safe-bottom));padding:5px 9px;gap:6px}
+      .barTrack{width:82px;height:9px}
+    }
   </style>
 </head>
 <body>
